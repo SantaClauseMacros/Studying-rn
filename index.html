@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Study Buddy</title>
+    <title>Study Buddy - Multiple Choice</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <style>
         .flip-card {
@@ -40,7 +40,7 @@
     <div class="max-w-4xl mx-auto">
         <!-- Input Section -->
         <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h1 class="text-2xl font-bold mb-4">Fast Study Buddy</h1>
+            <h1 class="text-2xl font-bold mb-4">Study Buddy</h1>
             <textarea 
                 id="notesInput" 
                 class="w-full h-40 p-4 border rounded"
@@ -54,42 +54,22 @@
             </button>
         </div>
 
-        <!-- Flashcards -->
-        <div id="flashcardSection" class="hidden bg-white rounded-lg shadow p-6 mb-6">
-            <h2 class="text-xl font-bold mb-4">Flashcards</h2>
-            <div class="flip-card mb-4" onclick="flipCard()">
-                <div class="flip-card-inner">
-                    <div class="flip-card-front bg-white border rounded-lg">
-                        <p id="cardFront" class="text-xl"></p>
-                    </div>
-                    <div class="flip-card-back bg-white border rounded-lg">
-                        <p id="cardBack" class="text-xl"></p>
-                    </div>
-                </div>
+        <!-- Study Materials -->
+        <div id="quizSection" class="hidden">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-bold mb-4">Multiple Choice Quiz</h2>
+                <div id="quizContainer" class="space-y-6"></div>
+                <button 
+                    onclick="checkAnswers()" 
+                    class="mt-6 w-full bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600"
+                >
+                    Check Answers
+                </button>
             </div>
-            <div class="flex justify-between items-center">
-                <button onclick="prevCard()" class="bg-gray-500 text-white px-4 py-2 rounded">Previous</button>
-                <span id="cardCount"></span>
-                <button onclick="nextCard()" class="bg-gray-500 text-white px-4 py-2 rounded">Next</button>
-            </div>
-        </div>
-
-        <!-- Quiz -->
-        <div id="quizSection" class="hidden bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-bold mb-4">Quiz</h2>
-            <div id="quizContainer"></div>
-            <button 
-                onclick="checkAnswers()" 
-                class="mt-4 w-full bg-green-500 text-white px-6 py-2 rounded"
-            >
-                Check Answers
-            </button>
         </div>
     </div>
 
     <script>
-        let flashcards = [];
-        let currentCard = 0;
         let quizQuestions = [];
 
         function createStudyMaterials() {
@@ -104,87 +84,95 @@
                 .map(s => s.trim())
                 .filter(s => s.length > 10);
 
-            // Create flashcards
-            flashcards = [];
+            // Create questions
+            quizQuestions = [];
+            const usedSentences = new Set();
+
             sentences.forEach(sentence => {
+                if (usedSentences.has(sentence)) return;
+
                 const words = sentence.split(' ');
-                const longWords = words.filter(word => 
+                const keyWords = words.filter(word => 
                     word.length > 5 && 
-                    !['because', 'through', 'another', 'therefore'].includes(word.toLowerCase())
+                    !isCommonWord(word.toLowerCase())
                 );
 
-                if (longWords.length > 0) {
-                    const word = longWords[Math.floor(Math.random() * longWords.length)];
-                    flashcards.push({
-                        front: sentence.replace(word, '_____'),
-                        back: word
-                    });
+                if (keyWords.length > 0) {
+                    // Pick a random keyword for the question
+                    const correctAnswer = keyWords[Math.floor(Math.random() * keyWords.length)];
+                    
+                    // Create wrong answers from other keywords in different sentences
+                    const otherKeywords = sentences
+                        .filter(s => s !== sentence)
+                        .flatMap(s => s.split(' '))
+                        .filter(w => w.length > 5 && !isCommonWord(w.toLowerCase()))
+                        .filter(w => w !== correctAnswer);
+
+                    // Get 3 random wrong answers
+                    const wrongAnswers = shuffleArray(Array.from(new Set(otherKeywords)))
+                        .slice(0, 3);
+
+                    if (wrongAnswers.length === 3) {
+                        quizQuestions.push({
+                            question: sentence,
+                            correctAnswer: correctAnswer,
+                            allAnswers: shuffleArray([...wrongAnswers, correctAnswer])
+                        });
+                        usedSentences.add(sentence);
+                    }
                 }
             });
 
-            // Create quiz
-            quizQuestions = flashcards.slice(0, 5);
-
-            // Show sections
-            document.getElementById('flashcardSection').classList.remove('hidden');
+            // Show quiz section
             document.getElementById('quizSection').classList.remove('hidden');
-            
-            // Update display
-            updateCard();
             createQuiz();
-        }
-
-        function updateCard() {
-            if (flashcards.length === 0) return;
-            const card = flashcards[currentCard];
-            document.getElementById('cardFront').textContent = card.front;
-            document.getElementById('cardBack').textContent = card.back;
-            document.getElementById('cardCount').textContent = 
-                `Card ${currentCard + 1} of ${flashcards.length}`;
-            document.querySelector('.flip-card').classList.remove('flipped');
         }
 
         function createQuiz() {
             const container = document.getElementById('quizContainer');
             container.innerHTML = quizQuestions.map((q, i) => `
-                <div class="mb-4 p-4 bg-gray-50 rounded">
-                    <p class="mb-2">Question ${i + 1}:</p>
-                    <p class="mb-2">${q.front}</p>
-                    <input type="text" 
-                           id="q${i}" 
-                           class="w-full p-2 border rounded"
-                           placeholder="Your answer...">
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <p class="font-bold mb-4">Question ${i + 1}:</p>
+                    <p class="mb-4">${q.question}</p>
+                    <div class="space-y-2">
+                        ${q.allAnswers.map((answer, j) => `
+                            <div class="flex items-center">
+                                <input type="radio" 
+                                       id="q${i}a${j}" 
+                                       name="q${i}" 
+                                       value="${answer}"
+                                       class="mr-3">
+                                <label for="q${i}a${j}">${answer}</label>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             `).join('');
-        }
-
-        function flipCard() {
-            document.querySelector('.flip-card').classList.toggle('flipped');
-        }
-
-        function nextCard() {
-            if (currentCard < flashcards.length - 1) {
-                currentCard++;
-                updateCard();
-            }
-        }
-
-        function prevCard() {
-            if (currentCard > 0) {
-                currentCard--;
-                updateCard();
-            }
         }
 
         function checkAnswers() {
             let score = 0;
             quizQuestions.forEach((q, i) => {
-                const answer = document.getElementById(`q${i}`).value;
-                if (answer.toLowerCase() === q.back.toLowerCase()) {
+                const selected = document.querySelector(`input[name="q${i}"]:checked`)?.value;
+                if (selected === q.correctAnswer) {
                     score++;
                 }
             });
             alert(`You got ${score} out of ${quizQuestions.length} correct!`);
+        }
+
+        function isCommonWord(word) {
+            return ['about', 'above', 'after', 'again', 'their', 'there', 'these', 
+                    'those', 'which', 'while', 'would', 'because', 'could', 'should',
+                    'through', 'during', 'before', 'within'].includes(word);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
         }
     </script>
 </body>
