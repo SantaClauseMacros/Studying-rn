@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Study Assistant Pro</title>
+    
+    <!-- External Dependencies -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    
+    <style>
+        /* Core Styles */
+        .glass { 
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        /* Card Flip Animation */
+        .card-container {
+            perspective: 1000px;
+            height: 300px;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.8s;
+            transform-style: preserve-3d;
+        }
+        .card-container.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Animations */
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Loading Animation */
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #4F46E5 0%, #818CF8 50%, #4F46E5 100%);
+            background-size: 200% 100%;
+            animation: loading 2s linear infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Progress Circle */
+        .progress-ring {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+    <!-- Main Navigation -->
+    <nav class="glass fixed top-0 w-full z-50 shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <span class="text-2xl font-bold text-blue-600">
+                        <i class="fas fa-brain mr-2"></i>AI Study Assistant
+                    </span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button onclick="toggleFullscreen()" class="p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button onclick="saveProgress()" class="p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-save"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 pt-20 pb-8 max-w-7xl">
+        <!-- Input Section -->
+        <div class="glass rounded-xl shadow-lg p-6 mb-8 animate__animated animate__fadeIn">
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Notes Input -->
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold">Your Notes</h2>
+                    <textarea 
+                        id="notesInput" 
+                        class="w-full h-64 p-4 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Paste your notes here... I'll automatically create study materials!"
+                    ></textarea>
+                    <div class="flex space-x-2">
+                        <button onclick="processNotes()" 
+                                class="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-all">
+                            <i class="fas fa-magic mr-2"></i>Generate Study Materials
+                        </button>
+                        <button onclick="clearNotes()" 
+                                class="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-all">
+                            <i class="fas fa-trash mr-2"></i>Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Smart Features -->
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold">Smart Features</h2>
+                    <div class="bg-blue-50 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            <span>AI-powered concept extraction</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            <span>Automatic question generation</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            <span>Smart flashcard creation</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            <span>Progress tracking</span>
+                        </div>
+                    </div>
+
+                    <!-- Processing Options -->
+                    <div class="space-y-2">
+                        <label class="block font-medium">Processing Options:</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="defineTerms" checked>
+                                <span>Define key terms</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="generateQuestions" checked>
+                                <span>Generate questions</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="createFlashcards" checked>
+                                <span>Create flashcards</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="includeSummary" checked>
+                                <span>Include summary</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Study Materials Output -->
+        <div id="studyMaterials" class="space-y-8 animate__animated animate__fadeIn">
+            <!-- Content will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 space-y-2"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="glass rounded-xl p-8 max-w-md w-full mx-4">
+            <div class="space-y-4 text-center">
+                <div class="loading-bar rounded-full"></div>
+                <p class="text-lg font-medium text-white" id="loadingText">Processing your notes...</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+// Main Study Processing Logic
+class StudyMaterialGenerator {
+    constructor() {
+        this.flashcards = [];
+        this.quizQuestions = [];
+        this.keyTerms = new Map();
+        this.summary = [];
+        this.stats = {
+            totalTerms: 0,
+            complexityScore: 0,
+            topicsCovered: new Set()
+        };
+        this.commonWords = new Set([
+            'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i',
+            'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at',
+            'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her',
+            'she', 'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there',
+            'their', 'what', 'so', 'up', 'out', 'if', 'about', 'who', 'get',
+            'which', 'go', 'me', 'when', 'make', 'can', 'like', 'time', 'no',
+            'just', 'him', 'know', 'take', 'people', 'into', 'year', 'your',
+            'good', 'some', 'could', 'them', 'see', 'other', 'than', 'then',
+            'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also',
+            'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first',
+            'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these',
+            'give', 'day', 'most', 'us'
+        ]);
+    }
+
+    async processNotes(notes) {
+        this.showLoading('Analyzing your notes...');
+        
+        // Split notes into meaningful chunks
+        const sentences = this.splitIntoSentences(notes);
+        const paragraphs = this.splitIntoParagraphs(notes);
+        
+        // Process in stages
+        await this.identifyKeyTerms(sentences);
+        this.showLoading('Generating flashcards...');
+        await this.createFlashcards(sentences);
+        this.showLoading('Creating quiz questions...');
+        await this.createQuizQuestions(sentences, paragraphs);
+        this.showLoading('Generating summary...');
+        await this.generateSummary(paragraphs);
+        
+        this.hideLoading();
+        return this.renderMaterials();
+    }
+
+    splitIntoSentences(text) {
+        return text.split(/[.!?]+/)
+            .map(s => s.trim())
+            .filter(s => s.length > 10);
+    }
+
+    splitIntoParagraphs(text) {
+        return text.split(/\n\s*\n/)
+            .map(p => p.trim())
+            .filter(p => p.length > 0);
+    }
+
+    async identifyKeyTerms(sentences) {
+        const termScores = new Map();
+        
+        sentences.forEach(sentence => {
+            const words = sentence.split(/\s+/);
+            words.forEach(word => {
+                const cleanWord = word.toLowerCase().replace(/[^a-z]/g, '');
+                if (cleanWord.length > 4 && !this.commonWords.has(cleanWord)) {
+                    // Calculate importance score
+                    let score = 1;
+                    
+                    // Word characteristics
+                    if (/^[A-Z]/.test(word)) score += 2; // Capitalized words
+                    if (word.length > 7) score += 1; // Longer words
+                    if (/^[A-Z][a-z]+[A-Z]/.test(word)) score += 2; // CamelCase terms
+                    
+                    // Context characteristics
+                    if (sentence.includes('is a') || sentence.includes('refers to')) score += 2;
+                    if (sentence.includes('important') || sentence.includes('key')) score += 1;
+                    if (sentence.length > 100) score += 1;
+                    
+                    termScores.set(cleanWord, (termScores.get(cleanWord) || 0) + score);
+                }
+            });
+        });
+
+        // Filter and sort terms by score
+        const topTerms = Array.from(termScores.entries())
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 20);
+
+        topTerms.forEach(([term]) => {
+            this.keyTerms.set(term, this.findTermContexts(term, sentences));
+        });
+    }
+
+    findTermContexts(term, sentences) {
+        return sentences
+            .filter(s => s.toLowerCase().includes(term.toLowerCase()))
+            .map(s => ({
+                sentence: s,
+                isDefinition: s.includes('is a') || s.includes('refers to'),
+                isExample: s.includes('example') || s.includes('such as'),
+                complexity: this.calculateComplexity(s)
+            }));
+    }
+
+    async createFlashcards(sentences) {
+        // Create different types of flashcards
+        this.createDefinitionCards(sentences);
+        this.createConceptCards();
+        this.createRelationshipCards();
+        this.createApplicationCards();
+        
+        // Sort and categorize flashcards
+        this.flashcards = this.flashcards
+            .map(card => ({
+                ...card,
+                difficulty: this.calculateCardDifficulty(card)
+            }))
+            .sort(() => Math.random() - 0.5);
+    }
+
+    createDefinitionCards(sentences) {
+        sentences.forEach(sentence => {
+            const definitionPatterns = [
+                { regex: /(.+?)\s+is\s+(.+)/, groups: [1, 2] },
+                { regex: /(.+?)\s+are\s+(.+)/, groups: [1, 2] },
+                { regex: /(.+?)\s+refers\s+to\s+(.+)/, groups: [1, 2] },
+                { regex: /(.+?)\s+means\s+(.+)/, groups: [1, 2] }
+            ];
+
+            for (const pattern of definitionPatterns) {
+                const match = sentence.match(pattern.regex);
+                if (match) {
+                    const term = match[pattern.groups[0]].trim();
+                    const definition = match[pattern.groups[1]].trim();
+                    
+                    if (term.split(' ').length <= 3) { // Avoid too-long phrases
+                        this.flashcards.push({
+                            type: 'definition',
+                            front: `What is ${term}?`,
+                            back: definition,
+                            context: sentence,
+                            term: term
+                        });
+                    }
+                    break;
+                }
+            }
+        });
+    }
+
+    createConceptCards() {
+        this.keyTerms.forEach((contexts, term) => {
+            contexts.forEach(context => {
+                if (!context.isDefinition) {
+                    const words = context.sentence.split(' ');
+                    const termIndex = words.findIndex(w => 
+                        w.toLowerCase().includes(term.toLowerCase())
+                    );
+                    
+                    if (termIndex !== -1) {
+                        // Create fill-in-the-blank
+                        words[termIndex] = '_____';
+                        this.flashcards.push({
+                            type: 'concept',
+                            front: words.join(' '),
+                            back: term,
+                            context: context.sentence,
+                            term: term
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    createRelationshipCards() {
+        const terms = Array.from(this.keyTerms.keys());
+        
+        for (let i = 0; i < terms.length - 1; i++) {
+            for (let j = i + 1; j < terms.length; j++) {
+                const term1 = terms[i];
+                const term2 = terms[j];
+                
+                // Find sentences containing both terms
+                const sharedContexts = Array.from(this.keyTerms.get(term1))
+                    .filter(ctx => 
+                        ctx.sentence.toLowerCase().includes(term2.toLowerCase())
+                    );
+                
+                if (sharedContexts.length > 0) {
+                    this.flashcards.push({
+                        type: 'relationship',
+                        front: `How are ${term1} and ${term2} related?`,
+                        back: sharedContexts[0].sentence,
+                        context: sharedContexts[0].sentence,
+                        terms: [term1, term2]
+                    });
+                }
+            }
+        }
+    }
+
+    createApplicationCards() {
+        this.keyTerms.forEach((contexts, term) => {
+            const examples = contexts.filter(ctx => ctx.isExample);
+            if (examples.length > 0) {
+                this.flashcards.push({
+                    type: 'application',
+                    front: `Give an example of ${term}`,
+                    back: examples[0].sentence,
+                    context: examples[0].sentence,
+                    term: term
+                });
+            }
+        });
+    }
+
+    async createQuizQuestions(sentences, paragraphs) {
+        // Generate multiple types of questions
+        this.createMultipleChoiceQuestions();
+        this.createTrueFalseQuestions();
+        this.createShortAnswerQuestions();
+        
+        // Sort by difficulty
+        this.quizQuestions.sort((a, b) => a.difficulty - b.difficulty);
+    }
+
+    createMultipleChoiceQuestions() {
+        this.keyTerms.forEach((contexts, term) => {
+            contexts.forEach(context => {
+                // Create question
+                const question = context.sentence.replace(
+                    new RegExp(`\\b${term}\\b`, 'gi'),
+                    '_____'
+                );
+                
+                // Generate distractors (wrong answers)
+                const distractors = Array.from(this.keyTerms.keys())
+                    .filter(t => t !== term)
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 3);
+                
+                this.quizQuestions.push({
+                    type: 'multiple-choice',
+                    question: question,
+                    options: [...distractors, term].sort(() => Math.random() - 0.5),
+                    correct: term,
+                    difficulty: context.complexity
+                });
+            });
+        });
+    }
+
+    createTrueFalseQuestions() {
+        this.keyTerms.forEach((contexts, term) => {
+            contexts.forEach(context => {
+                // Create true statement
+                this.quizQuestions.push({
+                    type: 'true-false',
+                    question: context.sentence,
+                    correct: true,
+                    difficulty: context.complexity
+                });
+
+                // Create false statement by modifying the original
+                const falseStatement = this.generateFalseStatement(context.sentence, term);
+                this.quizQuestions.push({
+                    type: 'true-false',
+                    question: falseStatement,
+                    correct: false,
+                    difficulty: context.complexity
+                });
+            });
+        });
+    }
+
+    generateFalseStatement(sentence, term) {
+        const otherTerms = Array.from(this.keyTerms.keys())
+            .filter(t => t !== term);
+        const replacementTerm = otherTerms[Math.floor(Math.random() * otherTerms.length)];
+        return sentence.replace(new RegExp(`\\b${term}\\b`, 'gi'), replacementTerm);
+    }
+
+    createShortAnswerQuestions() {
+        this.keyTerms.forEach((contexts, term) => {
+            const bestContext = contexts.reduce((best, current) => 
+                current.complexity > best.complexity ? current : best
+            );
+
+            this.quizQuestions.push({
+                type: 'short-answer',
+                question: `Explain the concept of ${term} and its significance.`,
+                sampleAnswer: bestContext.sentence,
+                keyPoints: this.extractKeyPoints(bestContext.sentence),
+                difficulty: bestContext.complexity
+            });
+        });
+    }
+
+    calculateComplexity(text) {
+        const factors = {
+            length: Math.min(text.length / 200, 1),
+            technicalTerms: Math.min((text.match(/[A-Z][a-z]{6,}|[a-z]{8,}/g) || []).length / 5, 1),
+            structureComplexity: Math.min((text.match(/,|\(|\)|\;/g) || []).length / 5, 1),
+            conceptDensity: Math.min(this.countKeyTerms(text) / 3, 1)
+        };
+
+        return Object.values(factors).reduce((sum, val) => sum + val, 0) / 4;
+    }
+
+    countKeyTerms(text) {
+        return Array.from(this.keyTerms.keys())
+            .filter(term => text.toLowerCase().includes(term.toLowerCase()))
+            .length;
+    }
+
+    calculateCardDifficulty(card) {
+        let difficulty = 0;
+        
+        // Base difficulty by type
+        const typeDifficulty = {
+            'definition': 1,
+            'concept': 2,
+            'relationship': 3,
+            'application': 4
+        };
+        difficulty += typeDifficulty[card.type] || 1;
+        
+        // Content complexity
+        difficulty += this.calculateComplexity(card.context) * 3;
+        
+        // Length factor
+        difficulty += Math.min(card.back.length / 100, 2);
+        
+        return Math.min(difficulty / 10, 1); // Normalize to 0-1
+    }
+
+    extractKeyPoints(text) {
+        return text
+            .split(/,|;|\band\b/)
+            .map(point => point.trim())
+            .filter(point => point.length > 10);
+    }
+
+    // UI Helpers
+    showLoading(message) {
+        const loading = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        if (loading && loadingText) {
+            loadingText.textContent = message;
+            loading.classList.remove('hidden');
+        }
+    }
+
+    hideLoading() {
+        const loading = document.getElementById('loadingOverlay');
+        if (loading) {
+            loading.classList.add('hidden');
+        }
+    }
+
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg ${
+            type === 'error' ? 'bg-red-500' : 'bg-green-500'
+        } text-white animate__animated animate__fadeIn`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('animate__fadeIn');
+            toast.classList.add('animate__fadeOut');
+            setTimeout(() => toast.remove(), 1000);
+        }, 3000);
+    }
+}
+
+// Initialize the generator
+const studyGenerator = new StudyMaterialGenerator();
+
+// Event Handlers
+async function processNotes() {
+    const notes = document.getElementById('notesInput').value;
+    if (!notes.trim()) {
+        studyGenerator.showToast('Please enter some notes first!', 'error');
+        return;
+    }
+
+    try {
+        const materials = await studyGenerator.processNotes(notes);
+        document.getElementById('studyMaterials').innerHTML = await this.renderStudyMaterials();
+    } catch (error) {
+        studyGenerator.showToast('Error processing notes. Please try again.', 'error');
+        console.error(error);
+    }
+}
+
+// UI Rendering Methods
+function renderStudyMaterials() {
+    return `
+        <div class="grid md:grid-cols-2 gap-6">
+            ${this.renderFlashcards()}
+            ${this.renderQuiz()}
+        </div>
+        ${this.renderSummary()}
+    `;
+}
+
+function renderFlashcards() {
+    return `
+        <div class="glass rounded-xl p-6 shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Flashcards (${this.flashcards.length})</h2>
+                <div class="space-x-2">
+                    <button onclick="shuffleCards()" class="px-3 py-1 bg-blue-500 text-white rounded-lg">
+                        <i class="fas fa-random"></i> Shuffle
+                    </button>
+                    <button onclick="filterDifficult()" class="px-3 py-1 bg-red-500 text-white rounded-lg">
+                        <i class="fas fa-fire"></i> Hard
+                    </button>
+                </div>
+            </div>
+            <div class="card-container mb-4" onclick="flipCard()">
+                <div class="card-inner">
+                    <div class="card-front glass p-6 flex flex-col items-center justify-center">
+                        <p id="cardFront" class="text-xl text-center"></p>
+                        <small class="mt-4 text-gray-500">Click to flip</small>
+                    </div>
+                    <div class="card-back glass p-6 flex flex-col items-center justify-center">
+                        <p id="cardBack" class="text-xl text-center"></p>
+                        <div class="mt-4 space-x-2">
+                            <button onclick="markEasy(event)" class="px-4 py-2 bg-green-500 text-white rounded-lg">
+                                Got It
+                            </button>
+                            <button onclick="markHard(event)" class="px-4 py-2 bg-red-500 text-white rounded-lg">
+                                Review Later
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-between items-center">
+                <button onclick="prevCard()" class="px-4 py-2 bg-gray-500 text-white rounded-lg">
+                    <i class="fas fa-arrow-left mr-2"></i> Previous
+                </button>
+                <span id="cardProgress" class="text-gray-600"></span>
+                <button onclick="nextCard()" class="px-4 py-2 bg-gray-500 text-white rounded-lg">
+                    Next <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function renderQuiz() {
+    return `
+        <div class="glass rounded-xl p-6 shadow-lg">
+            <h2 class="text-xl font-bold mb-4">Quick Quiz</h2>
+            <div id="quizContainer" class="space-y-4">
+                ${this.quizQuestions.map((q, i) => this.renderQuestion(q, i)).join('')}
+            </div>
+            <button onclick="checkAnswers()" class="mt-4 w-full bg-green-500 text-white px-6 py-3 rounded-lg">
+                Check Answers
+            </button>
+        </div>
+    `;
+}
+
+function renderQuestion(question, index) {
+    switch (question.type) {
+        case 'multiple-choice':
+            return `
+                <div class="bg-white p-4 rounded-lg">
+                    <p class="font-semibold mb-2">Question ${index + 1}:</p>
+                    <p class="mb-3">${question.question}</p>
+                    <div class="space-y-2">
+                        ${question.options.map(option => `
+                            <div class="flex items-center">
+                                <input type="radio" name="q${index}" value="${option}" id="q${index}${option}" 
+                                    class="mr-2">
+                                <label for="q${index}${option}">${option}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        case 'true-false':
+            return `
+                <div class="bg-white p-4 rounded-lg">
+                    <p class="font-semibold mb-2">Question ${index + 1}:</p>
+                    <p class="mb-3">${question.question}</p>
+                    <div class="space-x-4">
+                        <input type="radio" name="q${index}" value="true" id="q${index}true">
+                        <label for="q${index}true">True</label>
+                        <input type="radio" name="q${index}" value="false" id="q${index}false">
+                        <label for="q${index}false">False</label>
+                    </div>
+                </div>
+            `;
+        case 'short-answer':
+            return `
+                <div class="bg-white p-4 rounded-lg">
+                    <p class="font-semibold mb-2">Question ${index + 1}:</p>
+                    <p class="mb-3">${question.question}</p>
+                    <textarea class="w-full p-2 border rounded" rows="3" 
+                        id="q${index}" placeholder="Type your answer here..."></textarea>
+                </div>
+            `;
+        default:
+            return '';
+    }
+}
+
+// Card Navigation
+let currentCardIndex = 0;
+
+function updateCard() {
+    const card = studyGenerator.flashcards[currentCardIndex];
+    document.getElementById('cardFront').textContent = card.front;
+    document.getElementById('cardBack').textContent = card.back;
+    document.getElementById('cardProgress').textContent = 
+        `Card ${currentCardIndex + 1} of ${studyGenerator.flashcards.length}`;
+    document.querySelector('.card-container').classList.remove('flipped');
+}
+
+function nextCard() {
+    if (currentCardIndex < studyGenerator.flashcards.length - 1) {
+        currentCardIndex++;
+        updateCard();
+    }
+}
+
+function prevCard() {
+    if (currentCardIndex > 0) {
+        currentCardIndex--;
+        updateCard();
+    }
+}
+
+function flipCard() {
+    document.querySelector('.card-container').classList.toggle('flipped');
+}
+
+function shuffleCards() {
+    studyGenerator.flashcards.sort(() => Math.random() - 0.5);
+    currentCardIndex = 0;
+    updateCard();
+    studyGenerator.showToast('Cards shuffled!');
+}
+
+function checkAnswers() {
+    let score = 0;
+    let total = studyGenerator.quizQuestions.length;
+    
+    studyGenerator.quizQuestions.forEach((q, i) => {
+        const answer = document.querySelector(`input[name="q${i}"]:checked`)?.value;
+        if (answer === String(q.correct)) score++;
+    });
+
+    const percentage = Math.round((score / total) * 100);
+    studyGenerator.showToast(`Score: ${percentage}%`);
+    
+    // Save progress
+    saveProgress();
+}
+
+function saveProgress() {
+    const progress = {
+        flashcards: studyGenerator.flashcards,
+        quizQuestions: studyGenerator.quizQuestions,
+        stats: studyGenerator.stats,
+        lastStudied: new Date().toISOString()
+    };
+    localStorage.setItem('studyProgress', JSON.stringify(progress));
+}
+
+// Initialize study materials if there's saved progress
+document.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('studyProgress');
+    if (saved) {
+        const progress = JSON.parse(saved);
+        Object.assign(studyGenerator, progress);
+        updateCard();
+    }
+});
