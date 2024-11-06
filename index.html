@@ -3,31 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Study Buddy</title>
+    <title>Fast Study Buddy</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Core Styles */
-        .glass {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-        }
-        .card-flip {
+        .flip-card {
             perspective: 1000px;
             height: 200px;
         }
-        .card-inner {
+        .flip-card-inner {
             position: relative;
             width: 100%;
             height: 100%;
-            text-align: center;
             transition: transform 0.6s;
             transform-style: preserve-3d;
         }
-        .card-flip.flipped .card-inner {
+        .flip-card.flipped .flip-card-inner {
             transform: rotateY(180deg);
         }
-        .card-front, .card-back {
+        .flip-card-front, .flip-card-back {
             position: absolute;
             width: 100%;
             height: 100%;
@@ -35,359 +28,164 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            text-align: center;
+            padding: 20px;
         }
-        .card-back {
+        .flip-card-back {
             transform: rotateY(180deg);
-        }
-        .toast {
-            animation: slideIn 0.3s ease-out;
-        }
-        @keyframes slideIn {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
-    <!-- Navigation -->
-    <nav class="glass fixed top-0 w-full z-50 shadow-lg">
-        <div class="container mx-auto px-6 py-4">
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto">
+        <!-- Input Section -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h1 class="text-2xl font-bold mb-4">Fast Study Buddy</h1>
+            <textarea 
+                id="notesInput" 
+                class="w-full h-40 p-4 border rounded"
+                placeholder="Paste your notes here..."
+            ></textarea>
+            <button 
+                onclick="createStudyMaterials()" 
+                class="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600"
+            >
+                Create Study Materials
+            </button>
+        </div>
+
+        <!-- Flashcards -->
+        <div id="flashcardSection" class="hidden bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">Flashcards</h2>
+            <div class="flip-card mb-4" onclick="flipCard()">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front bg-white border rounded-lg">
+                        <p id="cardFront" class="text-xl"></p>
+                    </div>
+                    <div class="flip-card-back bg-white border rounded-lg">
+                        <p id="cardBack" class="text-xl"></p>
+                    </div>
+                </div>
+            </div>
             <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-4">
-                    <span class="text-2xl font-bold text-blue-600">
-                        <i class="fas fa-brain mr-2"></i>Advanced Study Buddy
-                    </span>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <button onclick="studyApp.saveProgress()" class="p-2 rounded hover:bg-gray-100">
-                        <i class="fas fa-save"></i>
-                    </button>
-                    <button onclick="studyApp.clearAll()" class="p-2 rounded hover:bg-gray-100">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
+                <button onclick="prevCard()" class="bg-gray-500 text-white px-4 py-2 rounded">Previous</button>
+                <span id="cardCount"></span>
+                <button onclick="nextCard()" class="bg-gray-500 text-white px-4 py-2 rounded">Next</button>
             </div>
         </div>
-    </nav>
 
-    <!-- Main Content -->
-    <div class="container mx-auto px-4 pt-20 pb-8 max-w-6xl">
-        <div class="grid md:grid-cols-3 gap-6">
-            <!-- Sidebar -->
-            <div class="md:col-span-1">
-                <div class="glass rounded-xl p-6 shadow-lg">
-                    <h3 class="text-xl font-bold mb-4">Study Stats</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span>Cards Created</span>
-                            <span id="cardsCount" class="font-bold">0</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span>Quiz Score</span>
-                            <span id="quizScore" class="font-bold text-green-500">0%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Study Modes -->
-                <div class="glass rounded-xl p-6 shadow-lg mt-6">
-                    <h3 class="text-xl font-bold mb-4">Study Modes</h3>
-                    <div class="space-y-2">
-                        <button onclick="studyApp.switchMode('flashcards')" 
-                                class="w-full text-left p-3 rounded hover:bg-blue-50 transition">
-                            <i class="fas fa-clone mr-2"></i>Flashcards
-                        </button>
-                        <button onclick="studyApp.switchMode('quiz')" 
-                                class="w-full text-left p-3 rounded hover:bg-blue-50 transition">
-                            <i class="fas fa-question-circle mr-2"></i>Quiz
-                        </button>
-                        <button onclick="studyApp.switchMode('match')" 
-                                class="w-full text-left p-3 rounded hover:bg-blue-50 transition">
-                            <i class="fas fa-th mr-2"></i>Matching Game
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Study Area -->
-            <div class="md:col-span-2 space-y-6">
-                <!-- Notes Input -->
-                <div class="glass rounded-xl p-6 shadow-lg">
-                    <h2 class="text-xl font-bold mb-4">Your Notes</h2>
-                    <textarea 
-                        id="notesInput" 
-                        class="w-full h-48 p-4 border rounded resize-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Paste your notes here..."
-                    ></textarea>
-                    <div class="mt-4 flex space-x-4">
-                        <button onclick="studyApp.processNotes()" 
-                                class="flex-1 bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600 transition">
-                            <i class="fas fa-magic mr-2"></i>Generate Study Materials
-                        </button>
-                        <button onclick="studyApp.clearNotes()" 
-                                class="bg-red-500 text-white px-6 py-3 rounded hover:bg-red-600 transition">
-                            <i class="fas fa-trash mr-2"></i>Clear
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Study Content -->
-                <div id="studyContent" class="glass rounded-xl p-6 shadow-lg">
-                    <!-- Dynamic content will be inserted here -->
-                </div>
-            </div>
+        <!-- Quiz -->
+        <div id="quizSection" class="hidden bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold mb-4">Quiz</h2>
+            <div id="quizContainer"></div>
+            <button 
+                onclick="checkAnswers()" 
+                class="mt-4 w-full bg-green-500 text-white px-6 py-2 rounded"
+            >
+                Check Answers
+            </button>
         </div>
     </div>
-<script>
-        class StudyApp {
-            constructor() {
-                this.flashcards = [];
-                this.quizQuestions = [];
-                this.currentCard = 0;
-                this.currentMode = 'flashcards';
-                this.stats = {
-                    cardsStudied: 0,
-                    quizScore: 0
-                };
-                this.loadSavedData();
+
+    <script>
+        let flashcards = [];
+        let currentCard = 0;
+        let quizQuestions = [];
+
+        function createStudyMaterials() {
+            const notes = document.getElementById('notesInput').value;
+            if (!notes.trim()) {
+                alert('Please enter some notes first!');
+                return;
             }
 
-            processNotes() {
-                const notes = document.getElementById('notesInput').value;
-                if (!notes.trim()) {
-                    this.showToast('Please enter some notes first!', 'error');
-                    return;
+            // Split into sentences
+            const sentences = notes.split(/[.!?]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 10);
+
+            // Create flashcards
+            flashcards = [];
+            sentences.forEach(sentence => {
+                const words = sentence.split(' ');
+                const longWords = words.filter(word => 
+                    word.length > 5 && 
+                    !['because', 'through', 'another', 'therefore'].includes(word.toLowerCase())
+                );
+
+                if (longWords.length > 0) {
+                    const word = longWords[Math.floor(Math.random() * longWords.length)];
+                    flashcards.push({
+                        front: sentence.replace(word, '_____'),
+                        back: word
+                    });
                 }
+            });
 
-                // Process notes quickly
-                const sentences = notes
-                    .split(/[.!?]+/)
-                    .map(s => s.trim())
-                    .filter(s => s.length > 10);
+            // Create quiz
+            quizQuestions = flashcards.slice(0, 5);
 
-                this.generateFlashcards(sentences);
-                this.generateQuiz(sentences);
-                this.updateStats();
-                this.switchMode('flashcards');
-                this.showToast('Study materials created!');
-                this.saveProgress();
-            }
+            // Show sections
+            document.getElementById('flashcardSection').classList.remove('hidden');
+            document.getElementById('quizSection').classList.remove('hidden');
+            
+            // Update display
+            updateCard();
+            createQuiz();
+        }
 
-            generateFlashcards(sentences) {
-                this.flashcards = [];
-                sentences.forEach(sentence => {
-                    const words = sentence.split(' ');
-                    const importantWords = words.filter(word => 
-                        word.length > 5 && 
-                        !this.isCommonWord(word.toLowerCase())
-                    );
+        function updateCard() {
+            if (flashcards.length === 0) return;
+            const card = flashcards[currentCard];
+            document.getElementById('cardFront').textContent = card.front;
+            document.getElementById('cardBack').textContent = card.back;
+            document.getElementById('cardCount').textContent = 
+                `Card ${currentCard + 1} of ${flashcards.length}`;
+            document.querySelector('.flip-card').classList.remove('flipped');
+        }
 
-                    if (importantWords.length > 0) {
-                        const word = importantWords[Math.floor(Math.random() * importantWords.length)];
-                        this.flashcards.push({
-                            front: sentence.replace(word, '_____'),
-                            back: word
-                        });
-                    }
-                });
-                document.getElementById('cardsCount').textContent = this.flashcards.length;
-            }
+        function createQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = quizQuestions.map((q, i) => `
+                <div class="mb-4 p-4 bg-gray-50 rounded">
+                    <p class="mb-2">Question ${i + 1}:</p>
+                    <p class="mb-2">${q.front}</p>
+                    <input type="text" 
+                           id="q${i}" 
+                           class="w-full p-2 border rounded"
+                           placeholder="Your answer...">
+                </div>
+            `).join('');
+        }
 
-            generateQuiz(sentences) {
-                this.quizQuestions = this.flashcards
-                    .slice(0, 5)
-                    .map(card => ({
-                        question: card.front,
-                        answer: card.back
-                    }));
-            }
+        function flipCard() {
+            document.querySelector('.flip-card').classList.toggle('flipped');
+        }
 
-            switchMode(mode) {
-                this.currentMode = mode;
-                const content = document.getElementById('studyContent');
-                
-                switch (mode) {
-                    case 'flashcards':
-                        content.innerHTML = this.renderFlashcards();
-                        this.updateCard();
-                        break;
-                    case 'quiz':
-                        content.innerHTML = this.renderQuiz();
-                        break;
-                    case 'match':
-                        content.innerHTML = this.renderMatchingGame();
-                        break;
-                }
-            }
-
-            renderFlashcards() {
-                return `
-                    <h2 class="text-xl font-bold mb-4">Flashcards</h2>
-                    <div class="card-flip mb-4" onclick="studyApp.flipCard()">
-                        <div class="card-inner">
-                            <div class="card-front bg-white rounded-lg shadow">
-                                <p id="cardFront" class="text-xl p-6"></p>
-                            </div>
-                            <div class="card-back bg-white rounded-lg shadow">
-                                <p id="cardBack" class="text-xl p-6"></p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <button onclick="studyApp.prevCard()" class="bg-gray-500 text-white px-4 py-2 rounded">
-                            <i class="fas fa-arrow-left mr-2"></i>Previous
-                        </button>
-                        <span id="cardProgress" class="text-gray-600"></span>
-                        <button onclick="studyApp.nextCard()" class="bg-gray-500 text-white px-4 py-2 rounded">
-                            Next<i class="fas fa-arrow-right ml-2"></i>
-                        </button>
-                    </div>
-                `;
-            }
-
-            renderQuiz() {
-                return `
-                    <h2 class="text-xl font-bold mb-4">Quick Quiz</h2>
-                    <div class="space-y-4">
-                        ${this.quizQuestions.map((q, i) => `
-                            <div class="bg-white p-4 rounded shadow">
-                                <p class="mb-2">Question ${i + 1}:</p>
-                                <p class="mb-2">${q.question}</p>
-                                <input type="text" 
-                                    id="q${i}" 
-                                    class="w-full p-2 border rounded"
-                                    placeholder="Your answer...">
-                            </div>
-                        `).join('')}
-                    </div>
-                    <button onclick="studyApp.checkAnswers()" 
-                            class="mt-4 w-full bg-green-500 text-white px-6 py-2 rounded">
-                        Check Answers
-                    </button>
-                `;
-            }
-
-            renderMatchingGame() {
-                const pairs = this.flashcards.slice(0, 6);
-                const cards = [...pairs.map(p => p.back), ...pairs.map(p => p.front)]
-                    .sort(() => Math.random() - 0.5);
-
-                return `
-                    <h2 class="text-xl font-bold mb-4">Matching Game</h2>
-                    <div class="grid grid-cols-3 gap-4">
-                        ${cards.map((card, i) => `
-                            <div class="bg-white p-4 rounded shadow cursor-pointer text-center"
-                                 onclick="studyApp.handleMatchClick(${i})">
-                                ${card}
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
-            updateCard() {
-                if (this.flashcards.length === 0) return;
-                const card = this.flashcards[this.currentCard];
-                document.getElementById('cardFront').textContent = card.front;
-                document.getElementById('cardBack').textContent = card.back;
-                document.getElementById('cardProgress').textContent = 
-                    `Card ${this.currentCard + 1} of ${this.flashcards.length}`;
-            }
-
-            nextCard() {
-                if (this.currentCard < this.flashcards.length - 1) {
-                    this.currentCard++;
-                    this.updateCard();
-                }
-            }
-
-            prevCard() {
-                if (this.currentCard > 0) {
-                    this.currentCard--;
-                    this.updateCard();
-                }
-            }
-
-            flipCard() {
-                document.querySelector('.card-flip').classList.toggle('flipped');
-            }
-
-            checkAnswers() {
-                let score = 0;
-                this.quizQuestions.forEach((q, i) => {
-                    const answer = document.getElementById(`q${i}`).value;
-                    if (answer.toLowerCase() === q.answer.toLowerCase()) {
-                        score++;
-                    }
-                });
-                
-                const percentage = Math.round((score / this.quizQuestions.length) * 100);
-                this.stats.quizScore = percentage;
-                document.getElementById('quizScore').textContent = `${percentage}%`;
-                this.showToast(`Score: ${percentage}%`);
-                this.saveProgress();
-            }
-
-            clearNotes() {
-                if (confirm('Clear all notes and study materials?')) {
-                    document.getElementById('notesInput').value = '';
-                    this.flashcards = [];
-                    this.quizQuestions = [];
-                    this.currentCard = 0;
-                    this.updateStats();
-                    this.switchMode('flashcards');
-                    this.showToast('All cleared!');
-                }
-            }
-
-            isCommonWord(word) {
-                return ['about', 'above', 'after', 'again', 'their', 'there', 'these', 
-                        'those', 'which', 'while', 'would', 'because', 'could', 'should',
-                        'through', 'during', 'before', 'within'].includes(word);
-            }
-
-            showToast(message, type = 'success') {
-                const toast = document.createElement('div');
-                toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded shadow-lg toast
-                    ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white`;
-                toast.textContent = message;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 3000);
-            }
-
-            updateStats() {
-                document.getElementById('cardsCount').textContent = this.flashcards.length;
-                document.getElementById('quizScore').textContent = `${this.stats.quizScore}%`;
-            }
-
-            saveProgress() {
-                const data = {
-                    flashcards: this.flashcards,
-                    quizQuestions: this.quizQuestions,
-                    stats: this.stats,
-                    notes: document.getElementById('notesInput').value
-                };
-                localStorage.setItem('studyBuddyData', JSON.stringify(data));
-            }
-
-            loadSavedData() {
-                const saved = localStorage.getItem('studyBuddyData');
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    this.flashcards = data.flashcards || [];
-                    this.quizQuestions = data.quizQuestions || [];
-                    this.stats = data.stats || { cardsStudied: 0, quizScore: 0 };
-                    document.getElementById('notesInput').value = data.notes || '';
-                    this.updateStats();
-                    if (this.flashcards.length > 0) {
-                        this.switchMode('flashcards');
-                    }
-                }
+        function nextCard() {
+            if (currentCard < flashcards.length - 1) {
+                currentCard++;
+                updateCard();
             }
         }
 
-        // Initialize the application
-        const studyApp = new StudyApp();
+        function prevCard() {
+            if (currentCard > 0) {
+                currentCard--;
+                updateCard();
+            }
+        }
+
+        function checkAnswers() {
+            let score = 0;
+            quizQuestions.forEach((q, i) => {
+                const answer = document.getElementById(`q${i}`).value;
+                if (answer.toLowerCase() === q.back.toLowerCase()) {
+                    score++;
+                }
+            });
+            alert(`You got ${score} out of ${quizQuestions.length} correct!`);
+        }
     </script>
 </body>
 </html>
