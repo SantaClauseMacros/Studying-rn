@@ -3,11 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Study Buddy Pro</title>
+    <title>Ultimate Study System</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    
     <style>
-        .card-container {
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .card-flip {
             perspective: 1000px;
             height: 300px;
         }
@@ -19,7 +26,7 @@
             transition: transform 0.8s;
             transform-style: preserve-3d;
         }
-        .card-container.flipped .card-inner {
+        .card-flip.flipped .card-inner {
             transform: rotateY(180deg);
         }
         .card-front, .card-back {
@@ -30,44 +37,57 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: white;
-            padding: 20px;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .card-back {
             transform: rotateY(180deg);
         }
-        .glass {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.18);
+        .memory-card {
+            perspective: 1000px;
+            cursor: pointer;
         }
-        .toast {
-            animation: slideIn 0.3s ease-out;
+        .memory-card.flipped .card-inner {
+            transform: rotateY(180deg);
         }
-        @keyframes slideIn {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+        .memory-card .card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
-    <!-- Header -->
+    <!-- Navigation -->
     <nav class="glass fixed top-0 w-full z-50 shadow-lg">
         <div class="container mx-auto px-6 py-4">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-4">
                     <span class="text-2xl font-bold text-blue-600">
-                        <i class="fas fa-brain mr-2"></i>Study Buddy Pro
+                        <i class="fas fa-brain mr-2"></i>Study System
                     </span>
                 </div>
-                <div class="flex space-x-4">
-                    <button onclick="saveNotes()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                        <i class="fas fa-save mr-2"></i>Save
+                <div class="flex items-center space-x-4">
+                    <button onclick="saveProgress()" class="p-2 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-save"></i>
                     </button>
-                    <button onclick="clearAll()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-                        <i class="fas fa-trash mr-2"></i>Clear
+                    <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button onclick="toggleFullscreen()" class="p-2 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-expand"></i>
                     </button>
                 </div>
             </div>
@@ -75,104 +95,587 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="container mx-auto px-4 pt-24 pb-8 max-w-6xl">
-        <!-- Input Section -->
-        <div class="glass rounded-xl p-6 shadow-lg mb-8">
-            <div class="grid md:grid-cols-2 gap-6">
-                <div>
-                    <h2 class="text-xl font-bold mb-4">Your Notes</h2>
-                    <textarea 
-                        id="notesInput" 
-                        class="w-full h-64 p-4 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Paste your notes here... I'll automatically create study materials!"
-                    ></textarea>
-                    <button 
-                        onclick="processNotes()" 
-                        class="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
-                    >
-                        <i class="fas fa-magic mr-2"></i>Generate Study Materials
-                    </button>
-                </div>
-                <div>
-                    <h2 class="text-xl font-bold mb-4">Study Tips</h2>
-                    <div class="bg-blue-50 rounded-lg p-4 space-y-3">
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-check-circle text-green-500"></i>
-                            <span>Paste any text - notes, articles, or documents</span>
+    <div class="container mx-auto px-4 pt-20 pb-8 max-w-7xl">
+        <div class="grid md:grid-cols-4 gap-6">
+            <!-- Left Sidebar -->
+            <div class="md:col-span-1 space-y-4">
+                <div class="glass rounded-xl p-6">
+                    <h3 class="text-xl font-bold mb-4">Study Progress</h3>
+                    <div class="space-y-4">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-blue-500" id="studyStreak">0</div>
+                            <div class="text-sm text-gray-600">Day Streak</div>
                         </div>
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-check-circle text-green-500"></i>
-                            <span>AI will create flashcards automatically</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-check-circle text-green-500"></i>
-                            <span>Practice with interactive quizzes</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-check-circle text-green-500"></i>
-                            <span>Track your progress as you learn</span>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold" id="cardsStudied">0</div>
+                                <div class="text-sm text-gray-600">Cards</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold" id="quizScore">0%</div>
+                                <div class="text-sm text-gray-600">Quiz Score</div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Study Materials -->
-        <div id="studyMaterials" class="space-y-8">
-            <!-- Flashcards Section -->
-            <div id="flashcardsSection" class="hidden">
-                <div class="glass rounded-xl p-6 shadow-lg">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold">Flashcards</h2>
-                        <div class="space-x-2">
-                            <button onclick="shuffleCards()" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
-                                <i class="fas fa-random mr-2"></i>Shuffle
+                <!-- Study Modes -->
+                <div class="glass rounded-xl p-6">
+                    <h3 class="text-xl font-bold mb-4">Study Modes</h3>
+                    <div class="space-y-2">
+                        <button onclick="switchMode('flashcards')" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-blue-50 transition">
+                            <i class="fas fa-clone mr-2"></i> Flashcards
+                        </button>
+                        <button onclick="switchMode('quiz')" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-blue-50 transition">
+                            <i class="fas fa-question mr-2"></i> Quiz
+                        </button>
+                        <button onclick="switchMode('mindmap')" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-blue-50 transition">
+                            <i class="fas fa-project-diagram mr-2"></i> Mind Map
+                        </button>
+                        <button onclick="switchMode('games')" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-blue-50 transition">
+                            <i class="fas fa-gamepad mr-2"></i> Games
+                        </button>
+                        <button onclick="switchMode('summary')" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-blue-50 transition">
+                            <i class="fas fa-file-alt mr-2"></i> Summary
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Study Area -->
+            <div class="md:col-span-3 space-y-6">
+                <!-- Notes Input -->
+                <div class="glass rounded-xl p-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h2 class="text-xl font-bold mb-4">Your Notes</h2>
+                            <textarea 
+                                id="notesInput" 
+                                class="w-full h-64 p-4 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Paste your notes here... I'll automatically create study materials!"
+                            ></textarea>
+                            <button onclick="processNotes()" 
+                                    class="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600">
+                                <i class="fas fa-magic mr-2"></i>Generate Study Materials
                             </button>
                         </div>
-                    </div>
-                    <div class="card-container mb-4" onclick="flipCard()">
-                        <div class="card-inner">
-                            <div class="card-front">
-                                <p id="cardFront" class="text-xl"></p>
-                            </div>
-                            <div class="card-back">
-                                <p id="cardBack" class="text-xl"></p>
+                        <div>
+                            <h2 class="text-xl font-bold mb-4">Features</h2>
+                            <div class="bg-blue-50 rounded-lg p-4 space-y-3">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    <span>Smart flashcard generation</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    <span>Interactive quizzes</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    <span>Visual mind maps</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    <span>Learning games</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    <span>Progress tracking</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="flex justify-between items-center">
-                        <button onclick="prevCard()" class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                            <i class="fas fa-arrow-left mr-2"></i>Previous
-                        </button>
-                        <span id="cardProgress" class="text-gray-600"></span>
-                        <button onclick="nextCard()" class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                            Next<i class="fas fa-arrow-right ml-2"></i>
-                        </button>
-                    </div>
                 </div>
-            </div>
 
-            <!-- Quiz Section -->
-            <div id="quizSection" class="hidden">
-                <div class="glass rounded-xl p-6 shadow-lg">
-                    <h2 class="text-xl font-bold mb-4">Knowledge Check</h2>
-                    <div id="quizContainer" class="space-y-4"></div>
-                    <button 
-                        onclick="checkAnswers()" 
-                        class="mt-6 w-full bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600"
-                    >
-                        <i class="fas fa-check mr-2"></i>Check Answers
-                    </button>
+                <!-- Study Content -->
+                <div id="studyContent">
+                    <!-- Content will be dynamically inserted here -->
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="glass rounded-xl p-8">
+            <div class="loading-spinner w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+            <div class="mt-4 text-white text-lg" id="loadingText">Processing...</div>
+        </div>
+    </div>
+
     <script>
-        // Global variables
-        let flashcards = [];
-        let currentCard = 0;
-        let quizQuestions = [];
+        // Study System Core
+        class StudySystem {
+            constructor() {
+                this.flashcards = [];
+                this.quizQuestions = [];
+                this.mindMap = [];
+                this.currentMode = 'flashcards';
+                this.currentCard = 0;
+                this.stats = {
+                    streak: 0,
+                    cardsStudied: 0,
+                    quizScore: 0,
+                    lastStudied: null
+                };
+                this.loadProgress();
+            }
+
+            async processNotes(notes) {
+                this.showLoading('Analyzing notes...');
+
+                const sentences = this.splitIntoSentences(notes);
+                const concepts = this.extractConcepts(sentences);
+
+                this.showLoading('Generating flashcards...');
+                await this.createFlashcards(sentences);
+
+                this.showLoading('Creating quiz...');
+                await this.createQuiz(sentences);
+
+                this.showLoading('Building mind map...');
+                await this.createMindMap(concepts);
+
+                this.hideLoading();
+                this.switchMode('flashcards');
+                this.saveProgress();
+            }
+
+            splitIntoSentences(text) {
+                return text
+                    .split(/[.!?]+/)
+                    .map(s => s.trim())
+                    .filter(s => s.length > 10);
+            }
+
+            extractConcepts(sentences) {
+                const concepts = new Map();
+                
+                sentences.forEach(sentence => {
+                    const words = sentence.split(/\s+/);
+                    words.forEach(word => {
+                        if (this.isImportantTerm(word)) {
+                            const concept = concepts.get(word) || {
+                                term: word,
+                                occurrences: 0,
+                                contexts: []
+                            };
+                            concept.occurrences++;
+                            concept.contexts.push(sentence);
+                            concepts.set(word, concept);
+                        }
+                    });
+                });
+
+                return Array.from(concepts.values())
+                    .filter(c => c.occurrences > 1)
+                    .sort((a, b) => b.occurrences - a.occurrences);
+            }
+
+            isImportantTerm(word) {
+                const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
+                return (
+                    cleanWord.length > 5 &&
+                    !this.isCommonWord(cleanWord) &&
+                    (/^[A-Z]/.test(word) || word.length > 8)
+                );
+            }
+
+            isCommonWord(word) {
+                const commonWords = new Set([
+                    'about', 'above', 'after', 'again', 'against', 'another',
+                    'because', 'before', 'behind', 'between', 'during', 'should',
+                    'through', 'under', 'within', 'without', 'would', 'could',
+                    'there', 'their', 'these', 'those', 'while', 'where'
+                ]);
+                return commonWords.has(word);
+            }
+
+            async createFlashcards(sentences) {
+                this.flashcards = sentences
+                    .map(sentence => {
+                        const words = sentence.split(/\s+/);
+                        const importantWord = words.find(w => this.isImportantTerm(w));
+                        
+                        if (importantWord) {
+                            return {
+                                front: sentence.replace(
+                                    new RegExp(`\\b${importantWord}\\b`, 'gi'),
+                                    '_____'
+                                ),
+                                back: importantWord,
+                                context: sentence
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(card => card !== null);
+            }
+
+            async createQuiz(sentences) {
+                this.quizQuestions = sentences
+                    .map(sentence => {
+                        const words = sentence.split(/\s+/);
+                        const importantWord = words.find(w => this.isImportantTerm(w));
+                        
+                        if (importantWord) {
+                            return {
+                                question: sentence.replace(
+                                    new RegExp(`\\b${importantWord}\\b`, 'gi'),
+                                    '_____'
+                                ),
+                                answer: importantWord,
+                                context: sentence
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(q => q !== null);
+            }
+
+            async createMindMap(concepts) {
+                this.mindMap = concepts.slice(0, 10).map(concept => ({
+                    term: concept.term,
+                    connections: concepts
+                        .filter(c => 
+                            c.term !== concept.term && 
+                            c.contexts.some(ctx => 
+                                concept.contexts.some(cctx => 
+                                    ctx.includes(c.term)
+                                )
+                            )
+                        )
+                        .slice(0, 3)
+                        .map(c => c.term)
+                }));
+            }
+
+            switchMode(mode) {
+                this.currentMode = mode;
+                const content = document.getElementById('studyContent');
+                
+                switch (mode) {
+                    case 'flashcards':
+                        content.innerHTML = this.renderFlashcards();
+                        this.updateFlashcard();
+                        break;
+                    case 'quiz':
+                        content.innerHTML = this.renderQuiz();
+                        break;
+                    case 'mindmap':
+                        content.innerHTML = this.renderMindMap();
+                        this.drawMindMap();
+                        break;
+                    case 'games':
+                        content.innerHTML = this.renderGames();
+                        this.initializeGames();
+                        break;
+                    case 'summary':
+                        content.innerHTML = this.renderSummary();
+                        break;
+                }
+            }
+
+            renderFlashcards() {
+                return `
+                    <div class="glass rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold">Flashcards</h2>
+                            <div class="space-x-2">
+                                <button onclick="studySystem.shuffleCards()" 
+                                        class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
+                                    <i class="fas fa-random mr-2"></i>Shuffle
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-flip mb-4" onclick="studySystem.flipCard()">
+                            <div class="card-inner">
+                                <div class="card-front glass rounded-lg">
+                                    <p id="cardFront" class="text-xl text-center p-8"></p>
+                                </div>
+                                <div class="card-back glass rounded-lg">
+                                    <p id="cardBack" class="text-xl text-center p-8"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <button onclick="studySystem.prevCard()" 
+                                    class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                                <i class="fas fa-arrow-left mr-2"></i>Previous
+                            </button>
+                            <span id="cardProgress" class="text-gray-600"></span>
+                            <button onclick="studySystem.nextCard()" 
+                                    class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                                Next<i class="fas fa-arrow-right ml-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderQuiz() {
+                return `
+                    <div class="glass rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-4">Knowledge Check</h2>
+                        <div id="quizContainer" class="space-y-4">
+                            ${this.quizQuestions.map((q, i) => `
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <p class="font-semibold mb-2">Question ${i + 1}:</p>
+                                    <p class="mb-3">${q.question}</p>
+                                    <input type="text" 
+                                           id="q${i}" 
+                                           class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                           placeholder="Your answer...">
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button onclick="studySystem.checkAnswers()" 
+                                class="mt-6 w-full bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600">
+                            <i class="fas fa-check mr-2"></i>Check Answers
+                        </button>
+                    </div>
+                `;
+            }
+
+            renderMindMap() {
+                return `
+                    <div class="glass rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-4">Concept Map</h2>
+                        <canvas id="mindMapCanvas" class="w-full h-96 rounded-lg bg-white"></canvas>
+                    </div>
+                `;
+            }
+
+            renderGames() {
+                return `
+                    <div class="glass rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-4">Study Games</h2>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <h3 class="font-bold">Memory Match</h3>
+                                <div id="memoryGame" class="grid grid-cols-4 gap-2"></div>
+                            </div>
+                            <div class="space-y-4">
+                                <h3 class="font-bold">Word Scramble</h3>
+                                <div id="wordScramble" class="text-center">
+                                    <p id="scrambledWord" class="text-2xl mb-4"></p>
+                                    <input type="text" 
+                                           id="scrambleGuess" 
+                                           class="w-full p-2 border rounded"
+                                           placeholder="Your answer...">
+                                    <button onclick="studySystem.checkScramble()"
+                                            class="mt-2 bg-green-500 text-white px-4 py-2 rounded">
+                                        Check
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderSummary() {
+                const concepts = this.extractConcepts(this.flashcards.map(f => f.context));
+                return `
+                    <div class="glass rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-4">Key Concepts Summary</h2>
+                        <div class="space-y-4">
+                            ${concepts.slice(0, 5).map(c => `
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h3 class="font-bold mb-2">${c.term}</h3>
+                                    <p class="text-gray-600">${c.contexts[0]}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            drawMindMap() {
+                const canvas = document.getElementById('mindMapCanvas');
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const radius = 150;
+
+                this.mindMap.forEach((concept, i) => {
+                    const angle = (2 * Math.PI * i) / this.mindMap.length;
+                    const x = centerX + radius * Math.cos(angle);
+                    const y = centerY + radius * Math.sin(angle);
+
+                    // Draw connections
+                    concept.connections.forEach(conn => {
+                        const connIndex = this.mindMap.findIndex(c => c.term === conn);
+                        if (connIndex !== -1) {
+                            const connAngle = (2 * Math.PI * connIndex) / this.mindMap.length;
+                            const connX = centerX + radius * Math.cos(connAngle);
+                            const connY = centerY + radius * Math.sin(connAngle);
+                            
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(connX, connY);
+                            ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+                            ctx.stroke();
+                        }
+                    });
+
+                    // Draw node
+                    ctx.beginPath();
+                    ctx.arc(x, y, 30, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#3B82F6';
+                    ctx.fill();
+
+                    // Draw text
+                    ctx.fillStyle = 'white';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(concept.term, x, y);
+                });
+            }
+
+            initializeGames() {
+                this.initializeMemoryGame();
+                this.initializeWordScramble();
+            }
+
+            initializeMemoryGame() {
+                const gameContainer = document.getElementById('memoryGame');
+                if (!gameContainer) return;
+
+                const cards = [...this.flashcards]
+                    .slice(0, 6)
+                    .flatMap(card => [
+                        { id: `t${card.back}`, content: card.back },
+                        { id: `d${card.back}`, content: card.front }
+                    ])
+                    .sort(() => Math.random() - 0.5);
+
+                gameContainer.innerHTML = cards.map(card => `
+                    <div class="memory-card" data-id="${card.id}">
+                        <div class="card-inner">
+                            <div class="card-front bg-blue-500 text-white p-4 rounded">?</div>
+                            <div class="card-back bg-white p-4 rounded">${card.content}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            initializeWordScramble() {
+                if (this.flashcards.length === 0) return;
+                const word = this.flashcards[this.currentCard].back;
+                const scrambled = word
+                    .split('')
+                    .sort(() => Math.random() - 0.5)
+                    .join('');
+                document.getElementById('scrambledWord').textContent = scrambled;
+            }
+
+            // Navigation methods
+            nextCard() {
+                if (this.currentCard < this.flashcards.length - 1) {
+                    this.currentCard++;
+                    this.updateFlashcard();
+                }
+            }
+
+            prevCard() {
+                if (this.currentCard > 0) {
+                    this.currentCard--;
+                    this.updateFlashcard();
+                }
+            }
+
+            flipCard() {
+                document.querySelector('.card-flip').classList.toggle('flipped');
+            }
+
+            shuffleCards() {
+                this.flashcards.sort(() => Math.random() - 0.5);
+                this.currentCard = 0;
+                this.updateFlashcard();
+                this.showToast('Cards shuffled!');
+            }
+
+            // Progress and storage
+            updateStats() {
+                const today = new Date().toDateString();
+                if (this.stats.lastStudied !== today) {
+                    this.stats.streak++;
+                    this.stats.lastStudied = today;
+                }
+                this.stats.cardsStudied++;
+                this.saveProgress();
+                this.updateUI();
+            }
+
+            saveProgress() {
+                localStorage.setItem('studyProgress', JSON.stringify({
+                    stats: this.stats,
+                    lastStudied: new Date().toISOString()
+                }));
+            }
+
+            loadProgress() {
+                const saved = localStorage.getItem('studyProgress');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    this.stats = data.stats;
+                    this.updateUI();
+                }
+            }
+
+            updateUI() {
+                document.getElementById('studyStreak').textContent = this.stats.streak;
+                document.getElementById('cardsStudied').textContent = this.stats.cardsStudied;
+                document.getElementById('quizScore').textContent = `${this.stats.quizScore}%`;
+            }
+
+            // Utility methods
+            showLoading(message) {
+                const overlay = document.getElementById('loadingOverlay');
+                const text = document.getElementById('loadingText');
+                if (overlay && text) {
+                    text.textContent = message;
+                    overlay.classList.remove('hidden');
+                }
+            }
+
+            hideLoading() {
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                }
+            }
+
+            showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg
+                    ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+        }
+
+        // Initialize the system
+        const studySystem = new StudySystem();
+
+        // Event handler for processing notes
+        function processNotes() {
+            const notes = document.getElementById('notesInput').value;
+            if (!notes.trim()) {
+                studySystem.showToast('Please enter some notes first!', 'error');
+                return;
+            }
+            studySystem.processNotes(notes);
+        }
 
         // Load saved notes if they exist
         document.addEventListener('DOMContentLoaded', () => {
@@ -181,166 +684,6 @@
                 document.getElementById('notesInput').value = savedNotes;
             }
         });
-
-        function processNotes() {
-            const notes = document.getElementById('notesInput').value;
-            if (!notes.trim()) {
-                showToast('Please enter some notes first!', 'error');
-                return;
-            }
-
-            // Split notes into sentences
-            const sentences = notes.split(/[.!?]+/)
-                .map(s => s.trim())
-                .filter(s => s.length > 10);
-
-            createFlashcards(sentences);
-            createQuiz(sentences);
-
-            // Show sections
-            document.getElementById('flashcardsSection').classList.remove('hidden');
-            document.getElementById('quizSection').classList.remove('hidden');
-            
-            // Save notes
-            localStorage.setItem('studyNotes', notes);
-            
-            showToast('Study materials generated successfully!');
-            updateCard();
-        }
-
-        function createFlashcards(sentences) {
-            flashcards = [];
-            sentences.forEach(sentence => {
-                const words = sentence.split(/\s+/);
-                const importantWords = words.filter(word => {
-                    const cleanWord = word.toLowerCase().replace(/[.,!?]/g, '');
-                    return cleanWord.length > 5 && !isCommonWord(cleanWord);
-                });
-
-                if (importantWords.length > 0) {
-                    const word = importantWords[Math.floor(Math.random() * importantWords.length)];
-                    const question = sentence.replace(new RegExp(`\\b${word}\\b`, 'gi'), '_____');
-                    flashcards.push({
-                        front: question,
-                        back: word
-                    });
-                }
-            });
-        }
-
-        function isCommonWord(word) {
-            const commonWords = new Set([
-                'about', 'above', 'after', 'again', 'against', 'another',
-                'because', 'before', 'behind', 'between', 'through', 'therefore'
-            ]);
-            return commonWords.has(word);
-        }
-
-        function createQuiz(sentences) {
-            quizQuestions = [];
-            sentences.forEach(sentence => {
-                const words = sentence.split(/\s+/);
-                const importantWords = words.filter(word => 
-                    word.length > 5 && !isCommonWord(word.toLowerCase())
-                );
-
-                if (importantWords.length > 0) {
-                    const word = importantWords[Math.floor(Math.random() * importantWords.length)];
-                    const question = sentence.replace(new RegExp(`\\b${word}\\b`, 'gi'), '_____');
-                    quizQuestions.push({
-                        question: question,
-                        correct: word
-                    });
-                }
-            });
-
-            // Display quiz
-            const quizHtml = quizQuestions.map((q, i) => `
-                <div class="bg-white p-4 rounded-lg shadow">
-                    <p class="font-semibold mb-2">Question ${i + 1}:</p>
-                    <p class="mb-3">${q.question}</p>
-                    <input type="text" 
-                           id="q${i}" 
-                           class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                           placeholder="Your answer...">
-                </div>
-            `).join('');
-            document.getElementById('quizContainer').innerHTML = quizHtml;
-        }
-
-        function updateCard() {
-            if (flashcards.length === 0) return;
-            const card = flashcards[currentCard];
-            document.getElementById('cardFront').textContent = card.front;
-            document.getElementById('cardBack').textContent = card.back;
-            document.getElementById('cardProgress').textContent = 
-                `Card ${currentCard + 1} of ${flashcards.length}`;
-            document.querySelector('.card-container').classList.remove('flipped');
-        }
-
-        function flipCard() {
-            document.querySelector('.card-container').classList.toggle('flipped');
-        }
-
-        function nextCard() {
-            if (currentCard < flashcards.length - 1) {
-                currentCard++;
-                updateCard();
-            }
-        }
-
-        function prevCard() {
-            if (currentCard > 0) {
-                currentCard--;
-                updateCard();
-            }
-        }
-
-        function shuffleCards() {
-            flashcards.sort(() => Math.random() - 0.5);
-            currentCard = 0;
-            updateCard();
-            showToast('Cards shuffled!');
-        }
-
-        function checkAnswers() {
-            let score = 0;
-            quizQuestions.forEach((q, i) => {
-                const answer = document.getElementById(`q${i}`).value;
-                if (answer.toLowerCase() === q.correct.toLowerCase()) {
-                    score++;
-                }
-            });
-            showToast(`You got ${score} out of ${quizQuestions.length} correct!`);
-        }
-
-        function saveNotes() {
-            const notes = document.getElementById('notesInput').value;
-            localStorage.setItem('studyNotes', notes);
-            showToast('Notes saved successfully!');
-        }
-
-        function clearAll() {
-            if (confirm('Are you sure you want to clear everything?')) {
-                document.getElementById('notesInput').value = '';
-                document.getElementById('flashcardsSection').classList.add('hidden');
-                document.getElementById('quizSection').classList.add('hidden');
-                localStorage.removeItem('studyNotes');
-                flashcards = [];
-                quizQuestions = [];
-                currentCard = 0;
-                showToast('Everything cleared!');
-            }
-        }
-
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg toast
-                ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
     </script>
 </body>
 </html>
