@@ -47,100 +47,136 @@
     </div>
 
     <script>
-        const questionTypes = {
+        const questionTemplates = {
             what: (topic) => ({
-                question: `What is ${topic} about?`,
-                correctAnswer: `${topic} is a key concept that explains important aspects of the subject`,
+                question: `What best describes ${topic}?`,
+                correctAnswer: topic.toLowerCase().includes('is') ? 
+                    topic : 
+                    `${topic} is a key concept in this subject`,
                 wrongAnswers: [
-                    `${topic} is an unrelated concept`,
-                    `${topic} has no clear definition`,
-                    `${topic} is from a different subject`
+                    `${topic} is not related to this topic`,
+                    `${topic} is from a different subject`,
+                    `${topic} has no connection here`
                 ]
             }),
             
-            how: (topic) => ({
-                question: `How does ${topic} work?`,
-                correctAnswer: `${topic} works by addressing key principles in the subject`,
+            understand: (topic) => ({
+                question: `Which statement about ${topic} is correct?`,
+                correctAnswer: `${topic} plays an important role in this subject`,
                 wrongAnswers: [
-                    `${topic} doesn't have a clear function`,
-                    `${topic} works randomly without pattern`,
-                    `${topic} has no practical application`
+                    `${topic} is not important to understand`,
+                    `${topic} should be ignored in this context`,
+                    `${topic} is a minor detail`
                 ]
             }),
             
-            why: (topic) => ({
-                question: `Why is ${topic} important?`,
-                correctAnswer: `${topic} is important because it's fundamental to understanding the subject`,
+            explain: (topic) => ({
+                question: `Why is ${topic} significant?`,
+                correctAnswer: `${topic} helps explain key concepts`,
                 wrongAnswers: [
-                    `${topic} isn't actually important`,
-                    `${topic} is a minor detail`,
-                    `${topic} could be ignored entirely`
-                ]
-            }),
-
-            when: (topic) => ({
-                question: `When would you apply ${topic}?`,
-                correctAnswer: `${topic} is applied when dealing with core aspects of this subject`,
-                wrongAnswers: [
-                    `${topic} is never applied in practice`,
-                    `${topic} is only used in emergencies`,
-                    `${topic} is outdated and not used anymore`
-                ]
-            }),
-
-            where: (topic) => ({
-                question: `Where is ${topic} most relevant?`,
-                correctAnswer: `${topic} is most relevant in understanding this subject area`,
-                wrongAnswers: [
-                    `${topic} is only relevant in other fields`,
-                    `${topic} has no relevant applications`,
-                    `${topic} is only used in theory`
+                    `${topic} has no significance`,
+                    `${topic} only confuses the subject`,
+                    `${topic} is not actually important`
                 ]
             })
         };
 
+        function isValidTopic(word) {
+            // Clean the word
+            word = word.replace(/[.,!?()]/g, '').trim();
+            
+            // Check if it's a good topic word
+            return word.length > 4 && // Must be at least 5 letters
+                   /^[A-Z][a-z]+$/.test(word) && // Must start with capital, then lowercase
+                   !isCommonWord(word) && // Not a common word
+                   !word.includes('(') && // No parentheses
+                   !word.includes(')') && 
+                   !word.includes(':') && // No special characters
+                   !word.includes(';');
+        }
+
+        function isCommonWord(word) {
+            const commonWords = new Set([
+                'what', 'when', 'where', 'why', 'how',
+                'this', 'that', 'these', 'those',
+                'there', 'their', 'they',
+                'about', 'above', 'after', 'again',
+                'could', 'should', 'would',
+                'make', 'made', 'from', 'have',
+                'more', 'must', 'such', 'like',
+                'been', 'were', 'with'
+            ]);
+            return commonWords.has(word.toLowerCase());
+        }
+
         function makeQuiz() {
             const notes = document.getElementById('notesInput').value;
             if (!notes) {
-                alert('Please enter some notes!');
+                alert('Please enter your notes first!');
                 return;
             }
 
+            // Get question limit
             const limit = parseInt(document.getElementById('questionLimit').value);
-            const lines = notes.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-            let questions = [];
-            
-            lines.forEach(line => {
-                const words = line.split(' ');
-                const mainWords = words.filter(word => word.length > 4 && !isCommonWord(word));
-                
-                if (mainWords.length > 0) {
-                    const topic = mainWords[0];
-                    Object.values(questionTypes).forEach(questionMaker => {
-                        questions.push(questionMaker(topic));
-                    });
-                }
+
+            // Split notes into sentences
+            const sentences = notes.split(/[.!?]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 15);
+
+            // Find good topics
+            let topics = new Set();
+            sentences.forEach(sentence => {
+                sentence.split(' ')
+                    .filter(isValidTopic)
+                    .forEach(topic => topics.add(topic));
             });
 
-            questions = questions.sort(() => Math.random() - 0.5).slice(0, limit);
-            
+            // Convert to array and limit
+            topics = Array.from(topics).slice(0, Math.ceil(limit / 3));
+
+            // Generate questions
+            let questions = [];
+            topics.forEach(topic => {
+                Object.values(questionTemplates).forEach(template => {
+                    questions.push(template(topic));
+                });
+            });
+
+            // Shuffle and limit questions
+            questions = questions
+                .sort(() => Math.random() - 0.5)
+                .slice(0, limit);
+
+            // Display questions
+            displayQuiz(questions);
+        }
+
+        function displayQuiz(questions) {
             const questionList = document.getElementById('questionList');
+
+            // Add progress bar
             questionList.innerHTML = `
                 <div class="mb-6">
                     <div class="bg-gray-200 rounded-full h-2.5 mb-2">
                         <div class="bg-blue-600 h-2.5 rounded-full" style="width: 0%" id="progressBar"></div>
                     </div>
-                    <div class="text-right text-sm text-gray-600">Progress: <span id="progressText">0%</span></div>
+                    <div class="text-right text-sm text-gray-600">
+                        Progress: <span id="progressText">0%</span>
+                    </div>
                 </div>
             `;
 
-            questionList.innerHTML += questions.map((q, i) => `
-                <div class="bg-white rounded-lg shadow p-6">
-                    <p class="font-bold mb-4">Question ${i + 1} of ${limit}: ${q.question}</p>
-                    <div class="space-y-2">
-                        ${[q.correctAnswer, ...q.wrongAnswers]
-                            .sort(() => Math.random() - 0.5)
-                            .map((answer, j) => `
+            // Add questions
+            questions.forEach((q, i) => {
+                const answers = [q.correctAnswer, ...q.wrongAnswers]
+                    .sort(() => Math.random() - 0.5);
+
+                questionList.innerHTML += `
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <p class="font-bold mb-4">Question ${i + 1} of ${questions.length}: ${q.question}</p>
+                        <div class="space-y-2">
+                            ${answers.map((answer, j) => `
                                 <div class="flex items-center">
                                     <input type="radio" 
                                            name="q${i}" 
@@ -151,23 +187,18 @@
                                     <label for="q${i}a${j}">${answer}</label>
                                 </div>
                             `).join('')}
+                        </div>
                     </div>
-                </div>
-            `).join('');
-
-            questionList.innerHTML += `
-                <button onclick="saveQuiz()" class="mt-4 bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600">
-                    Save Quiz
-                </button>
-            `;
+                `;
+            });
 
             document.getElementById('quizDisplay').classList.remove('hidden');
         }
 
         function updateProgress() {
-            const totalQuestions = document.getElementsByClassName('bg-white rounded-lg shadow p-6').length;
-            const answeredQuestions = document.querySelectorAll('input[type="radio"]:checked').length;
-            const percentage = Math.round((answeredQuestions / totalQuestions) * 100);
+            const total = document.getElementsByClassName('bg-white rounded-lg shadow p-6').length;
+            const answered = document.querySelectorAll('input[type="radio"]:checked').length;
+            const percentage = Math.round((answered / total) * 100);
             
             document.getElementById('progressBar').style.width = `${percentage}%`;
             document.getElementById('progressText').textContent = `${percentage}%`;
@@ -183,49 +214,14 @@
                 if (selected) {
                     total++;
                     if (selected.value.includes('key concept') || 
-                        selected.value.includes('works by') || 
-                        selected.value.includes('important because') ||
-                        selected.value.includes('is applied when') ||
-                        selected.value.includes('most relevant')) {
+                        selected.value.includes('important role') || 
+                        selected.value.includes('helps explain')) {
                         score++;
                     }
                 }
             }
 
             alert(`You got ${score} out of ${total} correct!`);
-            saveScore(score, total);
-        }
-
-        function saveQuiz() {
-            const quizData = {
-                notes: document.getElementById('notesInput').value,
-                questions: Array.from(document.getElementsByClassName('bg-white rounded-lg shadow p-6'))
-                    .map(q => ({
-                        question: q.querySelector('p').textContent,
-                        answers: Array.from(q.querySelectorAll('input')).map(i => i.value)
-                    }))
-            };
-            
-            localStorage.setItem('savedQuiz', JSON.stringify(quizData));
-            alert('Quiz saved! You can access it later.');
-        }
-
-        function saveScore(score, total) {
-            const scores = JSON.parse(localStorage.getItem('quizScores') || '[]');
-            scores.push({
-                date: new Date().toISOString(),
-                score: score,
-                total: total,
-                percentage: Math.round((score/total) * 100)
-            });
-            localStorage.setItem('quizScores', JSON.stringify(scores));
-        }
-
-        function isCommonWord(word) {
-            const common = ['about', 'above', 'after', 'again', 'their', 'there', 
-                          'these', 'those', 'which', 'while', 'would', 'because', 
-                          'could', 'should', 'where', 'when', 'what', 'with'];
-            return common.includes(word.toLowerCase());
         }
     </script>
 </body>
