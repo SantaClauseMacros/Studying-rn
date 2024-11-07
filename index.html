@@ -3,492 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Study Questions</title>
+    <title>Quick Quiz Generator</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen p-6">
+<body class="bg-gray-100 p-6">
     <div class="max-w-4xl mx-auto">
-        <!-- Input Section -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div class="flex items-center mb-4">
-                <h1 class="text-2xl font-bold text-blue-600">Smart Test Prep</h1>
-                <div class="ml-auto space-x-2">
-                    <select id="subjectSelect" class="border rounded p-2">
-                        <option value="general">General</option>
-                        <option value="history">History</option>
-                        <option value="science">Science</option>
-                        <option value="literature">Literature</option>
-                        <option value="math">Math</option>
-                    </select>
-                    <button onclick="saveQuiz()" class="bg-green-500 text-white px-4 py-2 rounded">
-                        Save Quiz
-                    </button>
-                </div>
-            </div>
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h1 class="text-2xl font-bold mb-4">Quick Quiz Generator</h1>
             <textarea 
                 id="notesInput" 
-                class="w-full h-64 p-4 border rounded resize-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Paste your notes here... The system will create real test questions!"
+                class="w-full h-64 p-4 border rounded"
+                placeholder="Paste your notes here..."
             ></textarea>
             <button 
-                onclick="generateQuestions()" 
-                class="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600 transition"
+                onclick="makeQuestions()" 
+                class="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600"
             >
-                Generate Test Questions
+                Generate Quiz
             </button>
         </div>
 
-        <!-- Quiz Section -->
-        <div id="quizSection" class="hidden space-y-6">
-            <!-- Progress Bar -->
-            <div class="bg-white rounded-lg shadow-lg p-4">
-                <div class="flex justify-between mb-2">
-                    <span class="font-bold">Progress</span>
-                    <span id="progressText">0/0</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
-                </div>
+        <!-- Quiz Display -->
+        <div id="quizDisplay" class="bg-white rounded-lg shadow p-6 hidden">
+            <div id="questionList" class="space-y-6">
+                <!-- Questions will appear here -->
             </div>
-
-            <!-- Questions -->
-            <div id="questionContainer" class="bg-white rounded-lg shadow-lg p-6">
-                <!-- Questions will be inserted here -->
-            </div>
-
-            <!-- Navigation -->
-            <div class="flex justify-between">
-                <button 
-                    onclick="prevQuestion()" 
-                    class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition"
-                >
-                    Previous
-                </button>
-                <button 
-                    onclick="nextQuestion()" 
-                    class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition"
-                >
-                    Next
-                </button>
-            </div>
-
-            <!-- Submit -->
             <button 
-                onclick="finishQuiz()" 
-                class="w-full bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600 transition"
+                onclick="checkAnswers()" 
+                class="mt-6 w-full bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600"
             >
-                Finish & See Results
+                Check Answers
             </button>
-        </div>
-
-        <!-- Results Section -->
-        <div id="resultsSection" class="hidden">
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-bold mb-4">Quiz Results</h2>
-                <div id="resultsContainer" class="space-y-4">
-                    <!-- Results will be inserted here -->
-                </div>
-                <button 
-                    onclick="reviewMistakes()" 
-                    class="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600 transition"
-                >
-                    Review Mistakes
-                </button>
-            </div>
         </div>
     </div>
 
     <script>
-    class SmartQuizGenerator {
-        constructor() {
-            this.questions = [];
-            this.currentQuestion = 0;
-            this.answers = [];
-            this.subject = "general";
-        }
+        let questions = [];
 
-        analyzeNotes(notes) {
-            const topics = this.extractTopics(notes);
-            const questions = [];
+        function makeQuestions() {
+            const notes = document.getElementById('notesInput').value;
+            if (!notes) {
+                alert('Please enter some notes!');
+                return;
+            }
 
-            topics.forEach(topic => {
-                // Create different types of questions for each topic
-                questions.push(
-                    this.createFactualQuestion(topic, notes),
-                    this.createUnderstandingQuestion(topic, notes),
-                    this.createApplicationQuestion(topic, notes)
-                );
+            // Split notes into sentences
+            const sentences = notes.split(/[.!?]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 20);
+
+            questions = [];
+
+            sentences.forEach((sentence, i) => {
+                if (i < 10) { // Limit to 10 questions
+                    // Create a question object
+                    const q = generateQuestion(sentence, sentences);
+                    if (q) questions.push(q);
+                }
             });
 
-            this.questions = questions.filter(q => q !== null);
-            return this.questions;
+            displayQuiz();
         }
 
-        extractTopics(notes) {
-            const sentences = notes.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 10);
-            const topics = new Set();
+        function generateQuestion(mainSentence, allSentences) {
+            // Find the main topic/subject of the sentence
+            const words = mainSentence.split(' ');
+            const importantWords = words.filter(word => 
+                word.length > 5 && 
+                word.charAt(0) === word.charAt(0).toUpperCase()
+            );
 
-            sentences.forEach(sentence => {
-                // Find key topics using various indicators
-                const patterns = [
-                    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b(?=.*(?:is|was|are|were))/g,
-                    /\b(?:called|known as|defined as)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g,
-                    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b(?=.*(?:refers to|means|represents))/g
-                ];
+            if (importantWords.length === 0) return null;
 
-                patterns.forEach(pattern => {
-                    const matches = sentence.match(pattern);
-                    if (matches) {
-                        matches.forEach(match => topics.add(match));
-                    }
-                });
-            });
-
-            return Array.from(topics);
-        }
-
-        createFactualQuestion(topic, notes) {
-            // Find relevant sentence containing the topic
-            const sentences = notes.split(/[.!?]+/).map(s => s.trim());
-            const relevantSentence = sentences.find(s => s.includes(topic));
-
-            if (!relevantSentence) return null;
-
-            // Create question patterns based on sentence structure
-            const patterns = [
-                {
-                    question: `What is ${topic}?`,
-                    correct: this.extractDefinition(relevantSentence, topic)
-                },
-                {
-                    question: `Which of the following best describes ${topic}?`,
-                    correct: this.extractDefinition(relevantSentence, topic)
-                },
-                {
-                    question: `What is the main characteristic of ${topic}?`,
-                    correct: this.extractMainPoint(relevantSentence, topic)
-                }
+            const topic = importantWords[0];
+            
+            // Create different types of questions
+            const questionTypes = [
+                `What is the main idea about ${topic}?`,
+                `Which of the following is true about ${topic}?`,
+                `What best describes ${topic}?`,
+                `What is a key feature of ${topic}?`
             ];
 
-            const questionPattern = patterns[Math.floor(Math.random() * patterns.length)];
-            return this.createQuestionObject(questionPattern.question, questionPattern.correct, topic);
-        }
+            const question = questionTypes[Math.floor(Math.random() * questionTypes.length)];
 
-        createUnderstandingQuestion(topic, notes) {
-            // Find related concepts
-            const relatedTopics = this.findRelatedTopics(topic, notes);
-            if (relatedTopics.length === 0) return null;
-
-            // Create understanding-based questions
-            const patterns = [
-                {
-                    question: `How does ${topic} relate to ${relatedTopics[0]}?`,
-                    correct: this.findRelationship(topic, relatedTopics[0], notes)
-                },
-                {
-                    question: `What is the significance of ${topic}?`,
-                    correct: this.findSignificance(topic, notes)
-                }
-            ];
-
-            const questionPattern = patterns[Math.floor(Math.random() * patterns.length)];
-            return this.createQuestionObject(questionPattern.question, questionPattern.correct, topic);
-        }
-
-        createApplicationQuestion(topic, notes) {
-            // Create application or analysis questions
-            const patterns = [
-                {
-                    question: `Which of the following is an example of ${topic}?`,
-                    correct: this.findExample(topic, notes)
-                },
-                {
-                    question: `How would ${topic} affect a given situation?`,
-                    correct: this.findEffect(topic, notes)
-                }
-            ];
-
-            const questionPattern = patterns[Math.floor(Math.random() * patterns.length)];
-            return this.createQuestionObject(questionPattern.question, questionPattern.correct, topic);
-        }
-
-        createQuestionObject(question, correctAnswer, topic) {
-            if (!correctAnswer) return null;
-
-            // Generate wrong answers based on the type of correct answer
-            const wrongAnswers = this.generateWrongAnswers(correctAnswer, topic);
-            const options = [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5);
+            // Create answer choices
+            const correctAnswer = mainSentence;
+            const wrongAnswers = allSentences
+                .filter(s => s !== mainSentence)
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 3);
 
             return {
                 question: question,
-                options: options,
-                correct: options.indexOf(correctAnswer),
-                explanation: this.generateExplanation(correctAnswer, topic),
-                topic: topic
+                choices: [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5),
+                correct: correctAnswer
             };
         }
 
-        generateWrongAnswers(correctAnswer, topic) {
-            // Generate plausible but incorrect answers
-            const wrongAnswers = [];
-            // Add slightly modified versions of the correct answer
-            wrongAnswers.push(this.modifyAnswer(correctAnswer));
-            // Add opposite or contrasting answers
-            wrongAnswers.push(this.generateContrastingAnswer(correctAnswer, topic));
-            // Add common misconceptions
-            wrongAnswers.push(this.generateMisconception(topic));
-
-            return wrongAnswers.filter(a => a && a !== correctAnswer).slice(0, 3);
-        }
-
-        // Helper methods
-        extractDefinition(sentence, topic) {
-            const parts = sentence.split(/is|are|was|were/);
-            return parts[1]?.trim() || null;
-        }
-
-        modifyAnswer(answer) {
-            // Modify the correct answer to create a plausible wrong answer
-            return answer.replace(/\b(is|are|was|were)\b/g, match => 
-                match === 'is' ? 'might be' :
-                match === 'are' ? 'could be' :
-                match === 'was' ? 'might have been' :
-                'could have been'
-            );
-        }
-
-        generateContrastingAnswer(answer, topic) {
-            // Create an answer that contrasts with the correct one
-            return `Not ${answer.toLowerCase()}`;
-        }
-
-        generateMisconception(topic) {
-            // Generate a common misconception about the topic
-            return `A common but incorrect understanding of ${topic}`;
-        }
-
-        generateExplanation(correctAnswer, topic) {
-            return `The correct answer explains how ${topic} ${correctAnswer.toLowerCase()}. 
-                    This is important because it shows the key relationship between the concepts.`;
-        }
-    }
-
-    // Application Logic
-    const quizGenerator = new SmartQuizGenerator();
-    let currentQuestionIndex = 0;
-    let userAnswers = [];
-
-    function generateQuestions() {
-        const notes = document.getElementById('notesInput').value;
-        if (!notes.trim()) {
-            alert('Please enter your notes first!');
-            return;
-        }
-
-        quizGenerator.subject = document.getElementById('subjectSelect').value;
-        const questions = quizGenerator.analyzeNotes(notes);
-        
-        if (questions.length === 0) {
-            alert('Could not generate questions. Please provide more detailed notes.');
-            return;
-        }
-
-        userAnswers = new Array(questions.length).fill(null);
-        showQuiz();
-        updateQuestion();
-    }
-
-    function showQuiz() {
-        document.getElementById('quizSection').classList.remove('hidden');
-        document.getElementById('resultsSection').classList.add('hidden');
-    }
-
-    function updateQuestion() {
-        const question = quizGenerator.questions[currentQuestionIndex];
-        const container = document.getElementById('questionContainer');
-        
-        container.innerHTML = `
-            <div class="space-y-4">
-                <p class="text-lg font-bold">${question.question}</p>
-                <div class="space-y-2">
-                    ${question.options.map((option, i) => `
-                        <div class="flex items-start">
-                            <input type="radio" 
-                                   id="option${i}" 
-                                   name="question" 
-                                   value="${i}"
-                                   ${userAnswers[currentQuestionIndex] === i ? 'checked' : ''}
-                                   class="mt-1 mr-3">
-                            <label for="option${i}" class="leading-tight">
-                                ${option}
-                            </label>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-
-        updateProgress();
-    }
-
-    function updateProgress() {
-        const progress = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const percentage = ((currentQuestionIndex + 1) / quizGenerator.questions.length) * 100;
-        
-        progress.style.width = `${percentage}%`;
-        progressText.textContent = `${currentQuestionIndex + 1}/${quizGenerator.questions.length}`;
-    }
-
-    function prevQuestion() {
-        if (currentQuestionIndex > 0) {
-            saveCurrentAnswer();
-            currentQuestionIndex--;
-            updateQuestion();
-        }
-    }
-
-    function nextQuestion() {
-        if (currentQuestionIndex < quizGenerator.questions.length - 1) {
-            saveCurrentAnswer();
-            currentQuestionIndex++;
-            updateQuestion();
-        }
-    }
-
-    function saveCurrentAnswer() {
-        const selected = document.querySelector('input[name="question"]:checked');
-        if (selected) {
-            userAnswers[currentQuestionIndex] = parseInt(selected.value);
-        }
-    }
-
-    function finishQuiz() {
-        saveCurrentAnswer();
-        showResults();
-    }
-
-    function showResults() {
-        const container = document.getElementById('resultsContainer');
-        let correctCount = 0;
-
-        const resultHtml = quizGenerator.questions.map((q, i) => {
-            const isCorrect = userAnswers[i] === q.correct;
-            if (isCorrect) correctCount++;
-
-            return `
-                <div class="p-4 ${isCorrect ? 'bg-green-50' : 'bg-red-50'} rounded-lg">
-                    <p class="font-bold">${q.question}</p>
-                    <p class="mt-2">Your answer: ${q.options[userAnswers[i]]}</p>
-                    <p class="mt-1">Correct answer: ${q.options[q.correct]}</p>
-                    <p class="mt-2 text-sm ${isCorrect ? 'text-green-600' : 'text-red-600'}">
-                        ${q.explanation}
-                    </p>
-                </div>
-            `;
-        }).join('');
-
-        container.innerHTML = `
-            <div class="text-center mb-6">
-                <p class="text-2xl font-bold">Your Score: ${correctCount}/${quizGenerator.questions.length}</p>
-                <p class="text-lg">${Math.round((correctCount/quizGenerator.questions.length) * 100)}%</p>
-            </div>
-            ${resultHtml}
-        `;
-
-        document.getElementById('quizSection').classList.add('hidden');
-        document.getElementById('resultsSection').classList.remove('hidden');
-    }
-
-    function reviewMistakes() {
-        const mistakes = userAnswers.map((answer, index) => ({
-            question: quizGenerator.questions[index],
-            userAnswer: answer,
-            index: index
-        })).filter(item => item.userAnswer !== item.question.correct);
-
-        if (mistakes.length === 0) {
-            alert('Great job! You got everything correct!');
-            return;
-        }
-
-        // Create a focused review quiz
-        quizGenerator.questions = mistakes.map(m => m.question);
-        userAnswers = new Array(mistakes.length).fill(null);
-        currentQuestionIndex = 0;
-        
-        showQuiz();
-        updateQuestion();
-    }
-
-    function saveQuiz() {
-        const quizData = {
-            questions: quizGenerator.questions,
-            subject: quizGenerator.subject,
-            date: new Date().toISOString(),
-            notes: document.getElementById('notesInput').value
-        };
-
-        const savedQuizzes = JSON.parse(localStorage.getItem('savedQuizzes') || '[]');
-        savedQuizzes.push(quizData);
-        localStorage.setItem('savedQuizzes', JSON.stringify(savedQuizzes));
-        
-        alert('Quiz saved! You can access it later.');
-    }
-
-    // Initialize subjects based on content
-    function detectSubject(text) {
-        const subjects = {
-            history: ['war', 'century', 'president', 'empire', 'revolution'],
-            science: ['atom', 'cell', 'energy', 'molecule', 'reaction'],
-            math: ['equation', 'number', 'geometry', 'algebra', 'function'],
-            literature: ['author', 'novel', 'character', 'theme', 'write']
-        };
-
-        let matches = {};
-        for (let [subject, keywords] of Object.entries(subjects)) {
-            matches[subject] = keywords.filter(word => 
-                text.toLowerCase().includes(word.toLowerCase())
-            ).length;
-        }
-
-        const bestMatch = Object.entries(matches)
-            .sort(([,a], [,b]) => b - a)[0][0];
+        function displayQuiz() {
+            const display = document.getElementById('quizDisplay');
+            const list = document.getElementById('questionList');
             
-        document.getElementById('subjectSelect').value = bestMatch;
-    }
+            list.innerHTML = questions.map((q, i) => `
+                <div class="p-4 bg-gray-50 rounded">
+                    <p class="font-bold mb-3">Question ${i + 1}: ${q.question}</p>
+                    <div class="space-y-2">
+                        ${q.choices.map((choice, j) => `
+                            <div class="flex items-start">
+                                <input type="radio" 
+                                       name="q${i}" 
+                                       value="${choice}"
+                                       id="q${i}c${j}"
+                                       class="mt-1 mr-2">
+                                <label for="q${i}c${j}">${choice}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
 
-    // Event Listeners
-    document.getElementById('notesInput').addEventListener('input', function(e) {
-        if (e.target.value.length > 100) {
-            detectSubject(e.target.value);
+            display.classList.remove('hidden');
         }
-    });
 
-    // Keyboard navigation
-    document.addEventListener('keydown', function(e) {
-        if (document.getElementById('quizSection').classList.contains('hidden')) return;
-        
-        switch(e.key) {
-            case 'ArrowLeft':
-                prevQuestion();
-                break;
-            case 'ArrowRight':
-                nextQuestion();
-                break;
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-                const index = parseInt(e.key) - 1;
-                const options = document.getElementsByName('question');
-                if (options[index]) {
-                    options[index].checked = true;
-                    userAnswers[currentQuestionIndex] = index;
-                }
-                break;
+        function checkAnswers() {
+            let score = 0;
+            questions.forEach((q, i) => {
+                const selected = document.querySelector(`input[name="q${i}"]:checked`)?.value;
+                if (selected === q.correct) score++;
+            });
+
+            alert(`You got ${score} out of ${questions.length} correct!`);
         }
-    });
     </script>
 </body>
 </html>
