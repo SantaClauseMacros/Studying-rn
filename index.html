@@ -3,25 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Quiz Maker</title>
+    <title>Smart Quiz Generator</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 p-6">
     <div class="max-w-4xl mx-auto">
         <!-- Input -->
         <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h1 class="text-2xl font-bold mb-4">Quiz Generator</h1>
+            <h1 class="text-2xl font-bold mb-4">Smart Quiz Generator</h1>
             <textarea 
                 id="notesInput" 
                 class="w-full h-64 p-4 border rounded"
                 placeholder="Paste your notes here..."
             ></textarea>
-            <button 
-                onclick="makeQuiz()" 
-                class="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600"
-            >
-                Create Quiz
-            </button>
+            <div class="mt-4 flex space-x-4">
+                <select id="questionLimit" class="border rounded p-2">
+                    <option value="5">5 Questions</option>
+                    <option value="10" selected>10 Questions</option>
+                    <option value="15">15 Questions</option>
+                    <option value="20">20 Questions</option>
+                </select>
+                <button 
+                    onclick="makeQuiz()" 
+                    class="flex-1 bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600"
+                >
+                    Create Quiz
+                </button>
+            </div>
         </div>
 
         <!-- Quiz -->
@@ -39,6 +47,58 @@
     </div>
 
     <script>
+        const questionTypes = {
+            what: (topic) => ({
+                question: `What is ${topic} about?`,
+                correctAnswer: `${topic} is a key concept that explains important aspects of the subject`,
+                wrongAnswers: [
+                    `${topic} is an unrelated concept`,
+                    `${topic} has no clear definition`,
+                    `${topic} is from a different subject`
+                ]
+            }),
+            
+            how: (topic) => ({
+                question: `How does ${topic} work?`,
+                correctAnswer: `${topic} works by addressing key principles in the subject`,
+                wrongAnswers: [
+                    `${topic} doesn't have a clear function`,
+                    `${topic} works randomly without pattern`,
+                    `${topic} has no practical application`
+                ]
+            }),
+            
+            why: (topic) => ({
+                question: `Why is ${topic} important?`,
+                correctAnswer: `${topic} is important because it's fundamental to understanding the subject`,
+                wrongAnswers: [
+                    `${topic} isn't actually important`,
+                    `${topic} is a minor detail`,
+                    `${topic} could be ignored entirely`
+                ]
+            }),
+
+            when: (topic) => ({
+                question: `When would you apply ${topic}?`,
+                correctAnswer: `${topic} is applied when dealing with core aspects of this subject`,
+                wrongAnswers: [
+                    `${topic} is never applied in practice`,
+                    `${topic} is only used in emergencies`,
+                    `${topic} is outdated and not used anymore`
+                ]
+            }),
+
+            where: (topic) => ({
+                question: `Where is ${topic} most relevant?`,
+                correctAnswer: `${topic} is most relevant in understanding this subject area`,
+                wrongAnswers: [
+                    `${topic} is only relevant in other fields`,
+                    `${topic} has no relevant applications`,
+                    `${topic} is only used in theory`
+                ]
+            })
+        };
+
         function makeQuiz() {
             const notes = document.getElementById('notesInput').value;
             if (!notes) {
@@ -46,47 +106,37 @@
                 return;
             }
 
-            // Break notes into topics
+            const limit = parseInt(document.getElementById('questionLimit').value);
             const lines = notes.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-            
-            // Generate questions
-            const questions = [];
+            let questions = [];
             
             lines.forEach(line => {
-                // Get main topic from line
                 const words = line.split(' ');
-                const mainWords = words.filter(word => word.length > 4);
+                const mainWords = words.filter(word => word.length > 4 && !isCommonWord(word));
                 
                 if (mainWords.length > 0) {
-                    // Create a "why" question
-                    questions.push({
-                        question: `Why is ${mainWords[0]} important?`,
-                        correctAnswer: `${mainWords[0]} is essential because it relates to the main topic`,
-                        wrongAnswers: [
-                            `${mainWords[0]} is not important to this topic`,
-                            `${mainWords[0]} only matters in other subjects`,
-                            `${mainWords[0]} has no significance here`
-                        ]
-                    });
-
-                    // Create a "how" question
-                    questions.push({
-                        question: `How does ${mainWords[0]} affect the topic?`,
-                        correctAnswer: `${mainWords[0]} directly impacts understanding of the subject`,
-                        wrongAnswers: [
-                            `${mainWords[0]} has no effect on the topic`,
-                            `${mainWords[0]} only affects unrelated areas`,
-                            `${mainWords[0]} is a minor detail`
-                        ]
+                    const topic = mainWords[0];
+                    Object.values(questionTypes).forEach(questionMaker => {
+                        questions.push(questionMaker(topic));
                     });
                 }
             });
 
-            // Display the questions
+            questions = questions.sort(() => Math.random() - 0.5).slice(0, limit);
+            
             const questionList = document.getElementById('questionList');
-            questionList.innerHTML = questions.map((q, i) => `
+            questionList.innerHTML = `
+                <div class="mb-6">
+                    <div class="bg-gray-200 rounded-full h-2.5 mb-2">
+                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: 0%" id="progressBar"></div>
+                    </div>
+                    <div class="text-right text-sm text-gray-600">Progress: <span id="progressText">0%</span></div>
+                </div>
+            `;
+
+            questionList.innerHTML += questions.map((q, i) => `
                 <div class="bg-white rounded-lg shadow p-6">
-                    <p class="font-bold mb-4">Question ${i + 1}: ${q.question}</p>
+                    <p class="font-bold mb-4">Question ${i + 1} of ${limit}: ${q.question}</p>
                     <div class="space-y-2">
                         ${[q.correctAnswer, ...q.wrongAnswers]
                             .sort(() => Math.random() - 0.5)
@@ -96,6 +146,7 @@
                                            name="q${i}" 
                                            value="${answer}"
                                            id="q${i}a${j}" 
+                                           onchange="updateProgress()"
                                            class="mr-2">
                                     <label for="q${i}a${j}">${answer}</label>
                                 </div>
@@ -104,7 +155,22 @@
                 </div>
             `).join('');
 
+            questionList.innerHTML += `
+                <button onclick="saveQuiz()" class="mt-4 bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600">
+                    Save Quiz
+                </button>
+            `;
+
             document.getElementById('quizDisplay').classList.remove('hidden');
+        }
+
+        function updateProgress() {
+            const totalQuestions = document.getElementsByClassName('bg-white rounded-lg shadow p-6').length;
+            const answeredQuestions = document.querySelectorAll('input[type="radio"]:checked').length;
+            const percentage = Math.round((answeredQuestions / totalQuestions) * 100);
+            
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${percentage}%`;
         }
 
         function checkAnswers() {
@@ -116,14 +182,50 @@
                 const selected = question.querySelector('input:checked');
                 if (selected) {
                     total++;
-                    // The first option in the original array was the correct answer
-                    if (selected.value.includes('essential') || selected.value.includes('directly impacts')) {
+                    if (selected.value.includes('key concept') || 
+                        selected.value.includes('works by') || 
+                        selected.value.includes('important because') ||
+                        selected.value.includes('is applied when') ||
+                        selected.value.includes('most relevant')) {
                         score++;
                     }
                 }
             }
 
             alert(`You got ${score} out of ${total} correct!`);
+            saveScore(score, total);
+        }
+
+        function saveQuiz() {
+            const quizData = {
+                notes: document.getElementById('notesInput').value,
+                questions: Array.from(document.getElementsByClassName('bg-white rounded-lg shadow p-6'))
+                    .map(q => ({
+                        question: q.querySelector('p').textContent,
+                        answers: Array.from(q.querySelectorAll('input')).map(i => i.value)
+                    }))
+            };
+            
+            localStorage.setItem('savedQuiz', JSON.stringify(quizData));
+            alert('Quiz saved! You can access it later.');
+        }
+
+        function saveScore(score, total) {
+            const scores = JSON.parse(localStorage.getItem('quizScores') || '[]');
+            scores.push({
+                date: new Date().toISOString(),
+                score: score,
+                total: total,
+                percentage: Math.round((score/total) * 100)
+            });
+            localStorage.setItem('quizScores', JSON.stringify(scores));
+        }
+
+        function isCommonWord(word) {
+            const common = ['about', 'above', 'after', 'again', 'their', 'there', 
+                          'these', 'those', 'which', 'while', 'would', 'because', 
+                          'could', 'should', 'where', 'when', 'what', 'with'];
+            return common.includes(word.toLowerCase());
         }
     </script>
 </body>
