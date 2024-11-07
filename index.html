@@ -3,137 +3,313 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quick Quiz Generator</title>
+    <title>Smart Study System</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen p-6">
     <div class="max-w-4xl mx-auto">
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h1 class="text-2xl font-bold mb-4">Quick Quiz Generator</h1>
+        <!-- Input Area -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center mb-4">
+                <h1 class="text-2xl font-bold text-blue-600">Smart Study Quiz</h1>
+                <select id="subjectSelect" class="ml-auto border rounded p-2">
+                    <option value="history">History</option>
+                    <option value="science">Science</option>
+                    <option value="english">English</option>
+                    <option value="general">General</option>
+                </select>
+            </div>
+
             <textarea 
                 id="notesInput" 
-                class="w-full h-64 p-4 border rounded"
-                placeholder="Paste your notes here..."
+                class="w-full h-64 p-4 border rounded resize-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Paste your notes here... I'll create real test questions!"
             ></textarea>
-            <button 
-                onclick="makeQuestions()" 
-                class="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600"
-            >
-                Generate Quiz
-            </button>
+
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <button onclick="generateQuestions('learn')" 
+                        class="bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600 transition">
+                    <i class="fas fa-brain mr-2"></i>Study Mode
+                </button>
+                <button onclick="generateQuestions('test')" 
+                        class="bg-purple-500 text-white px-6 py-3 rounded hover:bg-purple-600 transition">
+                    <i class="fas fa-file-alt mr-2"></i>Test Mode
+                </button>
+            </div>
         </div>
 
-        <!-- Quiz Display -->
-        <div id="quizDisplay" class="bg-white rounded-lg shadow p-6 hidden">
-            <div id="questionList" class="space-y-6">
-                <!-- Questions will appear here -->
+        <!-- Quiz Area -->
+        <div id="quizArea" class="hidden space-y-6">
+            <!-- Current Question -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <span id="questionCounter" class="text-lg font-bold">Question 1/10</span>
+                    <span id="scoreDisplay" class="text-lg font-bold text-green-500">Score: 0</span>
+                </div>
+                <div id="currentQuestion" class="space-y-4">
+                    <!-- Question content will go here -->
+                </div>
+                <div class="mt-6 flex justify-between">
+                    <button onclick="prevQuestion()" 
+                            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                        Previous
+                    </button>
+                    <button onclick="nextQuestion()" 
+                            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Next
+                    </button>
+                </div>
             </div>
-            <button 
-                onclick="checkAnswers()" 
-                class="mt-6 w-full bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600"
-            >
-                Check Answers
-            </button>
+
+            <!-- Explanation Area (for Study Mode) -->
+            <div id="explanationArea" class="hidden bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-bold mb-2">Explanation</h3>
+                <p id="explanationText" class="text-gray-700"></p>
+            </div>
         </div>
     </div>
 
     <script>
-        let questions = [];
+        class SmartQuizGenerator {
+            constructor() {
+                this.questions = [];
+                this.currentIndex = 0;
+                this.score = 0;
+                this.mode = 'test';
+            }
 
-        function makeQuestions() {
+            generateQuestions(notes, subject) {
+                // First, understand the content
+                const topics = this.analyzeContent(notes);
+                const relationships = this.findRelationships(topics, notes);
+                
+                // Generate different types of questions
+                let questions = [];
+                
+                topics.forEach(topic => {
+                    // Understanding questions
+                    questions.push(this.createUnderstandingQuestion(topic, notes));
+                    
+                    // Cause and effect
+                    if (topic.effects) {
+                        questions.push(this.createCauseEffectQuestion(topic, notes));
+                    }
+                    
+                    // Compare and contrast
+                    if (relationships[topic.name]) {
+                        questions.push(this.createComparisonQuestion(topic, relationships[topic.name], notes));
+                    }
+                    
+                    // Application questions
+                    questions.push(this.createApplicationQuestion(topic, notes));
+                });
+
+                // Filter out any null questions and randomize
+                this.questions = questions.filter(q => q !== null)
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 10); // Limit to 10 questions
+            }
+
+            analyzeContent(notes) {
+                const topics = [];
+                const sentences = notes.split(/[.!?]+/).map(s => s.trim());
+                
+                sentences.forEach(sentence => {
+                    // Find main concepts (usually capitalized or frequently mentioned)
+                    const words = sentence.split(' ');
+                    const mainConcepts = words.filter(word => 
+                        word.length > 4 && 
+                        (word[0] === word[0].toUpperCase() || 
+                         words.filter(w => w === word).length > 1)
+                    );
+
+                    mainConcepts.forEach(concept => {
+                        let topic = topics.find(t => t.name === concept);
+                        if (!topic) {
+                            topic = {
+                                name: concept,
+                                mentions: [],
+                                effects: [],
+                                related: []
+                            };
+                            topics.push(topic);
+                        }
+                        topic.mentions.push(sentence);
+                    });
+                });
+
+                return topics;
+            }
+
+            createUnderstandingQuestion(topic, notes) {
+                const patterns = [
+                    {
+                        question: `What is the main significance of ${topic.name}?`,
+                        strategy: "significance"
+                    },
+                    {
+                        question: `How does ${topic.name} work?`,
+                        strategy: "process"
+                    },
+                    {
+                        question: `Why is ${topic.name} important?`,
+                        strategy: "importance"
+                    }
+                ];
+
+                const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+                return this.createQuestionObject(pattern, topic);
+            }
+
+            createQuestionObject(pattern, topic) {
+                const correctAnswer = this.generateCorrectAnswer(pattern.strategy, topic);
+                const wrongAnswers = this.generateWrongAnswers(correctAnswer, topic, pattern.strategy);
+                
+                if (!correctAnswer || wrongAnswers.length < 3) return null;
+
+                return {
+                    question: pattern.question,
+                    options: this.shuffleArray([correctAnswer, ...wrongAnswers]),
+                    correct: correctAnswer,
+                    explanation: this.generateExplanation(pattern.strategy, topic, correctAnswer),
+                    topic: topic.name,
+                    type: pattern.strategy
+                };
+            }
+
+            generateCorrectAnswer(strategy, topic) {
+                switch(strategy) {
+                    case "significance":
+                        return this.findSignificance(topic);
+                    case "process":
+                        return this.findProcess(topic);
+                    case "importance":
+                        return this.findImportance(topic);
+                    default:
+                        return null;
+                }
+            }
+
+            findSignificance(topic) {
+                // Look for patterns indicating significance
+                const significancePatterns = [
+                    /led to/i, /resulted in/i, /caused/i, /important because/i,
+                    /significant/i, /crucial/i, /essential/i
+                ];
+
+                for (let mention of topic.mentions) {
+                    for (let pattern of significancePatterns) {
+                        if (pattern.test(mention)) {
+                            return mention;
+                        }
+                    }
+                }
+
+                // If no explicit significance found, construct one from context
+                return `${topic.name} played a crucial role in ${topic.mentions[0].toLowerCase()}`;
+            }
+
+            generateWrongAnswers(correctAnswer, topic, strategy) {
+                const wrongAnswers = [];
+
+                // Generate plausible but incorrect answers
+                switch(strategy) {
+                    case "significance":
+                        wrongAnswers.push(
+                            `${topic.name} had no significant impact`,
+                            `${topic.name} only affected minor developments`,
+                            `${topic.name} was a common misconception`
+                        );
+                        break;
+                    case "process":
+                        wrongAnswers.push(
+                            `It happens randomly without any specific process`,
+                            `It follows the opposite of the normal process`,
+                            `The process is still unknown`
+                        );
+                        break;
+                    case "importance":
+                        wrongAnswers.push(
+                            `It was not important for the development`,
+                            `Its importance has been exaggerated`,
+                            `It had negative effects instead of positive ones`
+                        );
+                        break;
+                }
+
+                return wrongAnswers.slice(0, 3);
+            }
+
+            shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+        }
+
+        // Main application logic
+        const quizGenerator = new SmartQuizGenerator();
+
+        function generateQuestions(mode) {
             const notes = document.getElementById('notesInput').value;
-            if (!notes) {
-                alert('Please enter some notes!');
+            const subject = document.getElementById('subjectSelect').value;
+
+            if (!notes.trim()) {
+                alert('Please enter your notes first!');
                 return;
             }
 
-            // Split notes into sentences
-            const sentences = notes.split(/[.!?]+/)
-                .map(s => s.trim())
-                .filter(s => s.length > 20);
-
-            questions = [];
-
-            sentences.forEach((sentence, i) => {
-                if (i < 10) { // Limit to 10 questions
-                    // Create a question object
-                    const q = generateQuestion(sentence, sentences);
-                    if (q) questions.push(q);
-                }
-            });
-
-            displayQuiz();
+            quizGenerator.mode = mode;
+            quizGenerator.generateQuestions(notes, subject);
+            showCurrentQuestion();
+            document.getElementById('quizArea').classList.remove('hidden');
         }
 
-        function generateQuestion(mainSentence, allSentences) {
-            // Find the main topic/subject of the sentence
-            const words = mainSentence.split(' ');
-            const importantWords = words.filter(word => 
-                word.length > 5 && 
-                word.charAt(0) === word.charAt(0).toUpperCase()
-            );
-
-            if (importantWords.length === 0) return null;
-
-            const topic = importantWords[0];
+        function showCurrentQuestion() {
+            const question = quizGenerator.questions[quizGenerator.currentIndex];
+            const container = document.getElementById('currentQuestion');
             
-            // Create different types of questions
-            const questionTypes = [
-                `What is the main idea about ${topic}?`,
-                `Which of the following is true about ${topic}?`,
-                `What best describes ${topic}?`,
-                `What is a key feature of ${topic}?`
-            ];
-
-            const question = questionTypes[Math.floor(Math.random() * questionTypes.length)];
-
-            // Create answer choices
-            const correctAnswer = mainSentence;
-            const wrongAnswers = allSentences
-                .filter(s => s !== mainSentence)
-                .sort(() => Math.random() - 0.5)
-                .slice(0, 3);
-
-            return {
-                question: question,
-                choices: [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5),
-                correct: correctAnswer
-            };
-        }
-
-        function displayQuiz() {
-            const display = document.getElementById('quizDisplay');
-            const list = document.getElementById('questionList');
-            
-            list.innerHTML = questions.map((q, i) => `
-                <div class="p-4 bg-gray-50 rounded">
-                    <p class="font-bold mb-3">Question ${i + 1}: ${q.question}</p>
-                    <div class="space-y-2">
-                        ${q.choices.map((choice, j) => `
-                            <div class="flex items-start">
-                                <input type="radio" 
-                                       name="q${i}" 
-                                       value="${choice}"
-                                       id="q${i}c${j}"
-                                       class="mt-1 mr-2">
-                                <label for="q${i}c${j}">${choice}</label>
-                            </div>
-                        `).join('')}
-                    </div>
+            container.innerHTML = `
+                <p class="text-lg font-bold mb-4">${question.question}</p>
+                <div class="space-y-3">
+                    ${question.options.map((option, i) => `
+                        <div class="flex items-start">
+                            <input type="radio" 
+                                   id="option${i}" 
+                                   name="question" 
+                                   value="${option}"
+                                   class="mt-1 mr-3">
+                            <label for="option${i}" class="leading-tight">
+                                ${option}
+                            </label>
+                        </div>
+                    `).join('')}
                 </div>
-            `).join('');
+            `;
 
-            display.classList.remove('hidden');
+            document.getElementById('questionCounter').textContent = 
+                `Question ${quizGenerator.currentIndex + 1}/${quizGenerator.questions.length}`;
+
+            if (quizGenerator.mode === 'learn') {
+                document.getElementById('explanationArea').classList.remove('hidden');
+            }
         }
 
-        function checkAnswers() {
-            let score = 0;
-            questions.forEach((q, i) => {
-                const selected = document.querySelector(`input[name="q${i}"]:checked`)?.value;
-                if (selected === q.correct) score++;
-            });
+        function nextQuestion() {
+            if (quizGenerator.currentIndex < quizGenerator.questions.length - 1) {
+                quizGenerator.currentIndex++;
+                showCurrentQuestion();
+            }
+        }
 
-            alert(`You got ${score} out of ${questions.length} correct!`);
+        function prevQuestion() {
+            if (quizGenerator.currentIndex > 0) {
+                quizGenerator.currentIndex--;
+                showCurrentQuestion();
+            }
         }
     </script>
 </body>
